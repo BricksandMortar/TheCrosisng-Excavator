@@ -416,7 +416,7 @@ namespace Excavator.F1
                             }
 
                             // add info to easily find/assign this fund in the view
-                            subFund = string.Format( "{0} {1}", subFund, fundName );
+                            subFund = string.Format( "{0} {1}", subFund, fundName ).Truncate(50);
 
                             var childAccount = accountList.FirstOrDefault( c => c.Name.Equals( subFund ) && c.ParentAccountId == parentAccount.Id );
                             if ( childAccount == null )
