@@ -233,9 +233,16 @@ namespace Excavator.F1
 
             // Connection statuses: Member, Visitor, Attendee, etc
             var connectionStatusTypes = DefinedTypeCache.Read( new Guid( Rock.SystemGuid.DefinedType.PERSON_CONNECTION_STATUS ), lookupContext ).DefinedValues;
-            int memberStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_CONNECTION_STATUS_MEMBER ) ).Id;
-            int visitorStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_CONNECTION_STATUS_VISITOR ) ).Id;
             int attendeeStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_CONNECTION_STATUS_ATTENDEE ) ).Id;
+            int visitorStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_CONNECTION_STATUS_VISITOR ) ).Id;
+            int eventParticipantStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Value == "Event Participant" ).Id;
+            int dummyRecordStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Value == "Dummy Record" ).Id;
+            int contributorOnlyStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Value == "Contributor Only" ).Id;
+
+            //The Crossing: Status Maps
+            List<string> attendeeSubStatusMaps = new List<string>() { "moved out of area", "no activity in past 3 years", "attends another church"};
+            List<string> visitorMaps = new List<string>() { "first time visitor", "deceased", "inactive member", "inactive partner" };
+
 
             // Record statuses/reasons: Active, Inactive, Pending, Deceased, etc
             var recordStatuses = DefinedTypeCache.Read( new Guid( Rock.SystemGuid.DefinedType.PERSON_RECORD_STATUS ) ).DefinedValues;
@@ -246,6 +253,8 @@ namespace Excavator.F1
             int recordStatusPendingId = recordStatuses.FirstOrDefault( r => r.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_PENDING ) ).Id;
             int statusReasonDeceasedId = recordStatusReasons.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_REASON_DECEASED ) ).Id;
             int statusReasonNoActivityId = recordStatusReasons.Where( dv => dv.Value == "No Activity" ).Select( dv => dv.Id ).FirstOrDefault();
+            int statusReasonMovedId = recordStatusReasons.Where( dv => dv.Value == "Moved" ).Select( dv => dv.Id ).FirstOrDefault();
+            int statusReasonNoLongerAttendingId = recordStatusReasons.Where( dv => dv.Value == "No Longer Attending" ).Select( dv => dv.Id ).FirstOrDefault();
 
             // Record type: Person
             int? personRecordTypeId = DefinedValueCache.Read( new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_PERSON ), lookupContext ).Id;
@@ -280,6 +289,7 @@ namespace Excavator.F1
             var employerAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "Employer", StringComparison.InvariantCultureIgnoreCase ) ) );
             var positionAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "Position", StringComparison.InvariantCultureIgnoreCase ) ) );
             var schoolAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "School", StringComparison.InvariantCultureIgnoreCase ) ) );
+            var tceAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key == "TCE" ) );
 
             var familyList = new List<Group>();
             var visitorList = new List<Group>();
@@ -375,32 +385,83 @@ namespace Excavator.F1
                         }
 
                         string memberStatus = row["Status_Name"] as string;
+                        string subMemberStatus = row["SubStatus_Name"] as string;
                         if ( memberStatus != null )
                         {
                             memberStatus = memberStatus.ToLower();
-                            if ( memberStatus.Equals( "member" ) )
+
+                            //Rock Visitor Connection Status
+                            if ( memberStatus == "visitor" || memberStatus == "first time visitor" || (memberStatus == "inactive member" && (subMemberStatus == "TCE" || subMemberStatus == "Parent of youth,  not attendee" )))
                             {
-                                person.ConnectionStatusValueId = memberStatusId;
-                                person.RecordStatusValueId = recordStatusActiveId;
-                            }
-                            else if ( memberStatus.Equals( "visitor" ) )
-                            {
-                                person.ConnectionStatusValueId = visitorStatusId;
-                                person.RecordStatusValueId = recordStatusActiveId;
+                                
+                                if (memberStatus != "inactive member" )
+                                {
+                                    person.RecordStatusValueId = recordStatusActiveId;
+                                    if ( subMemberStatus == "TCE" )
+                                    {
+                                        AddPersonAttribute( tceAttribute, person, "True" );
+                                    }
+                                }
+                                else
+                                {
+                                    person.RecordStatusValueId = recordStatusInactiveId;
+                                }
 
                                 // F1 can designate visitors by member status or household position
                                 familyRoleId = FamilyRole.Visitor;
+
+                                person.ConnectionStatusValueId = visitorStatusId;
                             }
-                            else if ( memberStatus.Equals( "deceased" ) )
+                            //Rock Attendee Connection Status
+                            else if ( memberStatus == "attendee" || memberStatus == "deceased" || memberStatus == "inactive partner" || (memberStatus == "inactive member" && attendeeSubStatusMaps.Contains(subMemberStatus)))
                             {
-                                person.IsDeceased = true;
-                                person.RecordStatusReasonValueId = statusReasonDeceasedId;
-                                person.RecordStatusValueId = recordStatusInactiveId;
+                                if (memberStatus == "deceased" )
+                                {
+                                    
+                                    person.IsDeceased = true;
+                                    person.RecordStatusReasonValueId = statusReasonDeceasedId;
+                                    person.RecordStatusValueId = recordStatusInactiveId;
+                                }
+                                else if ( memberStatus == "attendee" )
+                                {
+                                    person.RecordStatusValueId = recordStatusActiveId;
+                                    if ( subMemberStatus == "TCE" )
+                                    {
+                                        AddPersonAttribute( tceAttribute, person, "True" );
+                                    }
+                                }
+                                else if ( subMemberStatus == "moved out of area")
+                                {
+                                    person.RecordStatusReasonValueId = statusReasonMovedId;
+                                    person.RecordStatusValueId = recordStatusInactiveId;
+                                }
+                                else if ( subMemberStatus == "no activity in past 3 years")
+                                {
+                                    person.RecordStatusReasonValueId = statusReasonNoActivityId;
+                                    person.RecordStatusValueId = recordStatusInactiveId;
+                                }
+                                else if (memberStatus == "inactive member" && (subMemberStatus == "attends another church" || string.IsNullOrWhiteSpace(subMemberStatus)) || memberStatus == "inactive partner")
+                                {
+                                    person.RecordStatusValueId = recordStatusInactiveId;
+                                    person.RecordStatusReasonValueId = statusReasonNoActivityId;
+                                }
+                                person.ConnectionStatusValueId = attendeeStatusId;
                             }
-                            else if ( memberStatus.Equals( "dropped" ) || memberStatus.StartsWith( "inactive" ) )
+                            
+                            else if ( memberStatus == "contributor only" )
                             {
-                                person.RecordStatusReasonValueId = statusReasonNoActivityId;
-                                person.RecordStatusValueId = recordStatusInactiveId;
+                                person.RecordStatusValueId = recordStatusActiveId;
+                                person.ConnectionStatusValueId = contributorOnlyStatusId;
+                            }
+                            else if ( memberStatus == "dummy record" )
+                            {
+                                person.RecordStatusValueId = recordStatusActiveId;
+                                person.ConnectionStatusValueId = dummyRecordStatusId;
+                            }
+                            else if (memberStatus == "event prospect" )
+                            {
+                                person.RecordStatusValueId = recordStatusActiveId;
+                                person.ConnectionStatusValueId = eventParticipantStatusId;
                             }
                             else
                             {
