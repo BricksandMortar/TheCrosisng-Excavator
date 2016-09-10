@@ -256,6 +256,8 @@ namespace Excavator.F1
             int statusReasonMovedId = recordStatusReasons.Where( dv => dv.Value == "Moved" ).Select( dv => dv.Id ).FirstOrDefault();
             int statusReasonNoLongerAttendingId = recordStatusReasons.Where( dv => dv.Value == "No Longer Attending" ).Select( dv => dv.Id ).FirstOrDefault();
 
+            var personalNoteTypeId = new NoteTypeService( lookupContext ).Get( new Guid( Rock.SystemGuid.NoteType.PERSON_TIMELINE_NOTE ) ).Id;
+
             // Record type: Person
             int? personRecordTypeId = DefinedValueCache.Read( new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_PERSON ), lookupContext ).Id;
 
@@ -296,6 +298,8 @@ namespace Excavator.F1
             var previousNamesList = new Dictionary<Guid, string>();
             var householdCampusList = new List<string>();
 
+
+            List<Note> noteList = new List<Note>();
             int completed = 0;
             int totalRows = tableData.Count();
             int percentage = ( totalRows - 1 ) / 100 + 1;
@@ -386,6 +390,7 @@ namespace Excavator.F1
 
                         string memberStatus = row["Status_Name"] as string;
                         string subMemberStatus = row["SubStatus_Name"] as string;
+
                         if ( memberStatus != null )
                         {
                             memberStatus = memberStatus.ToLower();
@@ -462,6 +467,18 @@ namespace Excavator.F1
                             {
                                 person.RecordStatusValueId = recordStatusActiveId;
                                 person.ConnectionStatusValueId = eventParticipantStatusId;
+
+                                if (!string.IsNullOrWhiteSpace( subMemberStatus ) )
+                                {
+                                    var personNote = new Note();
+                                    personNote.ForeignId = person.Id;
+                                    personNote.NoteTypeId = personalNoteTypeId;
+                                    personNote.CreatedByPersonAliasId = ImportPersonAliasId;
+                                    personNote.CreatedDateTime = ImportDateTime;
+                                    personNote.Text = "Attended "+ subMemberStatus + " event";
+                                    personNote.Caption = string.Format( "General Note");
+                                    noteList.Add( personNote );
+                                }
                             }
                             else
                             {
@@ -602,8 +619,9 @@ namespace Excavator.F1
                     }
                     else if ( completed % ReportingNumber < 1 )
                     {
-                        SavePeople( familyList, visitorList, previousNamesList, ownerRole, childRoleId, inviteeRoleId, invitedByRoleId, canCheckInRoleId, allowCheckInByRoleId );
+                        SavePeople( familyList, visitorList, previousNamesList, ownerRole, childRoleId, inviteeRoleId, invitedByRoleId, canCheckInRoleId, allowCheckInByRoleId, noteList );
 
+                        noteList.Clear();
                         familyList.Clear();
                         visitorList.Clear();
                         previousNamesList.Clear();
@@ -632,7 +650,7 @@ namespace Excavator.F1
         /// <param name="invitedByRoleId">The invited by role identifier.</param>
         /// <param name="canCheckInRoleId">The can check in role identifier.</param>
         /// <param name="allowCheckInByRoleId">The allow check in by role identifier.</param>
-        private void SavePeople( List<Group> familyList, List<Group> visitorList, Dictionary<Guid, string> previousNamesList, GroupTypeRole ownerRole, int childRoleId, int inviteeRoleId, int invitedByRoleId, int canCheckInRoleId, int allowCheckInByRoleId )
+        private void SavePeople( List<Group> familyList, List<Group> visitorList, Dictionary<Guid, string> previousNamesList, GroupTypeRole ownerRole, int childRoleId, int inviteeRoleId, int invitedByRoleId, int canCheckInRoleId, int allowCheckInByRoleId, List<Note> noteList = null )
         {
             var rockContext = new RockContext();
             var groupMemberService = new GroupMemberService( rockContext );
@@ -651,6 +669,11 @@ namespace Excavator.F1
                         {
                             // don't call LoadAttributes, it only rewrites existing cache objects
                             // groupMember.Person.LoadAttributes( rockContext );
+                            if ( noteList.Any( n => n.ForeignKey == groupMember.Person.ForeignKey ) )
+                            {
+                                noteList.Where( n => n.ForeignKey == groupMember.Person.ForeignKey ).ToList()
+                                    .ForEach( n => n.EntityId = groupMember.Person.Id );
+                            }
 
                             foreach ( var attributeCache in groupMember.Person.Attributes.Select( a => a.Value ) )
                             {
@@ -811,6 +834,7 @@ namespace Excavator.F1
                                 impliedGroup.Name = impliedRelationshipGroupType.Name;
                                 impliedGroup.GroupTypeId = impliedRelationshipGroupType.Id;
                                 impliedGroup.Members.Add( impliedGroupMember );
+                                rockContext.Notes.AddRange( noteList );
                                 rockContext.Groups.Add( impliedGroup );
                             }
                         }
