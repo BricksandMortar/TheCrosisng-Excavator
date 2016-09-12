@@ -340,6 +340,10 @@ namespace Excavator.F1
                         person.ForeignKey = individualId.ToString();
                         person.ForeignId = individualId;
 
+                        // Map F1 attributes
+                        person.Attributes = new Dictionary<string, AttributeCache>();
+                        person.AttributeValues = new Dictionary<string, AttributeValueCache>();
+
                         var gender = row["Gender"] as string;
                         if ( gender != null )
                         {
@@ -402,14 +406,14 @@ namespace Excavator.F1
                                 if (memberStatus != "inactive member" )
                                 {
                                     person.RecordStatusValueId = recordStatusActiveId;
-                                    if ( subMemberStatus == "TCE" )
-                                    {
-                                        AddPersonAttribute( tceAttribute, person, "True" );
-                                    }
                                 }
                                 else
                                 {
                                     person.RecordStatusValueId = recordStatusInactiveId;
+                                }
+                                if ( subMemberStatus == "TCE" )
+                                {
+                                    AddPersonAttribute( tceAttribute, person, "True" );
                                 }
 
                                 // F1 can designate visitors by member status or household position
@@ -471,7 +475,7 @@ namespace Excavator.F1
                                 if (!string.IsNullOrWhiteSpace( subMemberStatus ) )
                                 {
                                     var personNote = new Note();
-                                    personNote.ForeignId = person.Id;
+                                    personNote.ForeignId = person.ForeignId;
                                     personNote.NoteTypeId = personalNoteTypeId;
                                     personNote.CreatedByPersonAliasId = ImportPersonAliasId;
                                     personNote.CreatedDateTime = ImportDateTime;
@@ -512,9 +516,7 @@ namespace Excavator.F1
                         // set a processing flag to keep visitors from receiving household info
                         person.ReviewReasonNote = familyRoleId.ToString();
 
-                        // Map F1 attributes
-                        person.Attributes = new Dictionary<string, AttributeCache>();
-                        person.AttributeValues = new Dictionary<string, AttributeValueCache>();
+                        
 
                         // IndividualId already defined in scope
                         AddPersonAttribute( IndividualIdAttribute, person, individualId.ToString() );
@@ -669,9 +671,9 @@ namespace Excavator.F1
                         {
                             // don't call LoadAttributes, it only rewrites existing cache objects
                             // groupMember.Person.LoadAttributes( rockContext );
-                            if ( noteList.Any( n => n.ForeignKey == groupMember.Person.ForeignKey ) )
+                            if ( noteList.Any( n => n.ForeignId == groupMember.Person.ForeignId ) )
                             {
-                                noteList.Where( n => n.ForeignKey == groupMember.Person.ForeignKey ).ToList()
+                                noteList.Where( n => n.ForeignId == groupMember.Person.ForeignId ).ToList()
                                     .ForEach( n => n.EntityId = groupMember.Person.Id );
                             }
 
