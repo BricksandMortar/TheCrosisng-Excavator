@@ -231,6 +231,10 @@ namespace Excavator.F1
                             MapUsers( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
+                        case "Attribute":
+                            MapAttributes( scanner.ScanTable( table.Name ).AsQueryable() );
+                            break;
+
                         default:
                             break;
                     }
