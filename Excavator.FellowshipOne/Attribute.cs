@@ -20,7 +20,7 @@ namespace Excavator.F1
 
             var personAttributes = attributeService.GetByEntityTypeId( PersonEntityTypeId ).ToList();
 
-            var twitterAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "Twitter", StringComparison.InvariantCultureIgnoreCase ) ) );
+            var childSponsorshipLocationAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "ChildSponsorshipLocation", StringComparison.InvariantCultureIgnoreCase ) ) );
             var facebookAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "Facebook", StringComparison.InvariantCultureIgnoreCase ) ) );
             var instagramAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "Instagram", StringComparison.InvariantCultureIgnoreCase ) ) );
 
@@ -79,9 +79,49 @@ namespace Excavator.F1
 
                                     //Attribute case handling here
 
-                                    if ( attributeName.Contains( "Twitter" ) && !person.Attributes.ContainsKey( twitterAttribute.Key ) )
+                                    if ( attributeName.Contains( "Child Sponsorship" ) && !person.Attributes.ContainsKey( childSponsorshipLocationAttribute.Key ) )
                                     {
-                                        AddPersonAttribute( twitterAttribute, person, "BLAH" );
+                                        switch ( attributeName )
+                                        {
+                                            case "Child Sponsorship-El Salvador":
+                                                AddPersonAttribute( childSponsorshipLocationAttribute, person, "El Salvador" );
+                                                break;
+                                            case "Child Sponsorship-India":
+                                                AddPersonAttribute( childSponsorshipLocationAttribute, person, "India" );
+                                                break;
+
+                                            case "Child Sponsorship-India ServLife":
+                                                AddPersonAttribute( childSponsorshipLocationAttribute, person, "India ServLife" );
+                                                break;
+
+                                            case "Child Sponsorship-Mexico":
+                                                AddPersonAttribute( childSponsorshipLocationAttribute, person, "Mexico" );
+                                                break;
+
+                                            case "Child Sponsorship-Mexico (El Nino)":
+                                                AddPersonAttribute( childSponsorshipLocationAttribute, person, "Mexico (El Nino)" );
+                                                break;
+
+                                            case "Child Sponsorship-Uganda":
+                                                AddPersonAttribute( childSponsorshipLocationAttribute, person, "Uganda" );
+                                                break;
+
+                                            case "Child Sponsorship-Uganda-CSP":
+                                                AddPersonAttribute( childSponsorshipLocationAttribute, person, "Uganda-CSP" );
+                                                break;
+
+                                            case "Child Sponsorship-Uganda-Mosaic":
+                                                AddPersonAttribute( childSponsorshipLocationAttribute, person, "Uganda-Mosaic" );
+                                                break;
+
+                                            case "Child Sponsorship-Vietnam":
+                                                AddPersonAttribute( childSponsorshipLocationAttribute, person, "Vietnam" );
+                                                break;
+
+                                            case "Child Sponsorship-Vietnam-Father's House":
+                                                AddPersonAttribute( childSponsorshipLocationAttribute, person, "Vietnam-Father's House" );
+                                                break;
+                                        }
                                     }
                                     else if ( attributeName.Contains( "Facebook" ) && !person.Attributes.ContainsKey( facebookAttribute.Key ) )
                                     {
