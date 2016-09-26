@@ -671,7 +671,7 @@ namespace Excavator.F1
                         {
                             // don't call LoadAttributes, it only rewrites existing cache objects
                             // groupMember.Person.LoadAttributes( rockContext );
-                            if ( noteList.Any( n => n.ForeignId == groupMember.Person.ForeignId ) )
+                            if ( noteList != null && noteList.Any( n => n.ForeignId == groupMember.Person.ForeignId ) )
                             {
                                 noteList.Where( n => n.ForeignId == groupMember.Person.ForeignId ).ToList()
                                     .ForEach( n => n.EntityId = groupMember.Person.Id );
@@ -836,7 +836,10 @@ namespace Excavator.F1
                                 impliedGroup.Name = impliedRelationshipGroupType.Name;
                                 impliedGroup.GroupTypeId = impliedRelationshipGroupType.Id;
                                 impliedGroup.Members.Add( impliedGroupMember );
-                                rockContext.Notes.AddRange( noteList );
+                                if (noteList != null )
+                                {
+                                    rockContext.Notes.AddRange( noteList );
+                                }
                                 rockContext.Groups.Add( impliedGroup );
                             }
                         }
