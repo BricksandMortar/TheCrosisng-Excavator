@@ -32,13 +32,12 @@ namespace Excavator.F1
             var baptismDateAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "BaptismDate", StringComparison.InvariantCultureIgnoreCase ) ) );
 
 
-            var existingPersonAttributeValues = new AttributeValueService( lookupContext ).Queryable().Where( a => personAttributes.Select( pa => pa.Id ).Any( pa => pa == a.AttributeId ) ).ToList();
             var newPeopleAttributes = new Dictionary<int, Person>();
 
             int completed = 0;
             int totalRows = tableData.Count();
             int percentage = ( totalRows - 1 ) / 100 + 1;
-            ReportProgress( 0, string.Format( "Verifying attribute value import ({0:N0} found, {1:N0} already exist).", totalRows, existingPersonAttributeValues.Count ) );
+            ReportProgress( 0, string.Format( "Verifying attribute value import ({0:N0} found to import in total.", totalRows ) );
 
             //TODO Look at the line before this
             foreach ( var groupedRows in tableData.GroupBy<Row, int?>( r => r["Individual_Id"] as int? ) )
@@ -46,7 +45,7 @@ namespace Excavator.F1
                 foreach ( var row in groupedRows.Where( r => r != null ) )
                 {
 
-                    int? individualId = row["Individual_ID"] as int?;
+                    int? individualId = row["Individual_Id"] as int?;
 
                     if ( individualId != null )
                     {
@@ -155,11 +154,11 @@ namespace Excavator.F1
                                             AddPersonAttribute( leadershipDevelopmentAttribute, person, matchingStaffPerson.PersonId.ToString() );
                                         }
                                     }
-                                    else if (attributeName.Contains( "Paid Childcare Worker" ) && !person.Attributes.ContainsKey( paidChildcareWorkerAttribute.Key ) )
+                                    else if (attributeName == "Paid Childcare Worker" && !person.Attributes.ContainsKey( paidChildcareWorkerAttribute.Key ) )
                                     {
                                         AddPersonAttribute( paidChildcareWorkerAttribute, person, "True" );
                                     }
-                                    else if ( attributeName.Contains( "Photo Consent" ) && !person.Attributes.ContainsKey( photoConsentAttribute.Key ) )
+                                    else if ( attributeName == "Photo Consent" && !person.Attributes.ContainsKey( photoConsentAttribute.Key ) )
                                     {
                                         AddPersonAttribute( photoConsentAttribute, person, "True" );
                                     }
@@ -204,6 +203,7 @@ namespace Excavator.F1
                                 // reset so context doesn't bloat
                                 lookupContext = new RockContext();
                                 personService = new PersonService( lookupContext );
+                                attributeService = new AttributeService( lookupContext );
                                 newPeopleAttributes.Clear();
                                 ReportPartialProgress();
                             }
