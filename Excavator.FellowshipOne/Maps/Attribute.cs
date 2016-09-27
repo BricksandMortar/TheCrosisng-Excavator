@@ -151,10 +151,10 @@ namespace Excavator.F1
                                         var matchingStaffPersonKeys = GetPersonKeys( individualId, null, includeVisitors: false );
                                         if (matchingStaffPersonKeys != null )
                                         {
-                                            var matchingStaffPerson = personService.Get( matchingStaffPersonKeys.PersonAliasId );
+                                            var matchingStaffPerson = personService.Get( matchingStaffPersonKeys.PersonId );
                                             if ( matchingStaffPerson != null )
                                             {
-                                                AddPersonAttribute( leadershipDevelopmentAttribute, person, matchingStaffPerson.Guid.ToString() );
+                                                AddPersonAttribute( leadershipDevelopmentAttribute, person, matchingStaffPerson.PrimaryAlias.Guid.ToString() );
                                             }
                                         }
                                     }
