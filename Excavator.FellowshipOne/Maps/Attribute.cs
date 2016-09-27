@@ -143,15 +143,19 @@ namespace Excavator.F1
 
                                         if ( !person.Attributes.ContainsKey( childSponsorshipStartDateAttribute.Key ) && startDate.HasValue )
                                         {
-                                            AddPersonAttribute( childSponsorshipStartDateAttribute, person, startDate.Value.ToString( "yyyy-MM-dd") );
+                                            AddPersonAttribute( childSponsorshipStartDateAttribute, person, startDate.Value.ToString( "o") );
                                         }
                                     }
                                     else if ( attributeName.Contains( "Leadership Development" ) && !person.Attributes.ContainsKey( leadershipDevelopmentAttribute.Key ) )
                                     {
-                                        var matchingStaffPerson = GetPersonKeys( individualId, null, includeVisitors: false );
-                                        if (matchingStaffPerson != null )
+                                        var matchingStaffPersonKeys = GetPersonKeys( individualId, null, includeVisitors: false );
+                                        if (matchingStaffPersonKeys != null )
                                         {
-                                            AddPersonAttribute( leadershipDevelopmentAttribute, person, matchingStaffPerson.PersonId.ToString() );
+                                            var matchingStaffPerson = personService.Get( matchingStaffPersonKeys.PersonAliasId );
+                                            if ( matchingStaffPerson != null )
+                                            {
+                                                AddPersonAttribute( leadershipDevelopmentAttribute, person, matchingStaffPerson.Guid.ToString() );
+                                            }
                                         }
                                     }
                                     else if (attributeName == "Paid Childcare Worker" && !person.Attributes.ContainsKey( paidChildcareWorkerAttribute.Key ) )
@@ -168,11 +172,11 @@ namespace Excavator.F1
                                     }
                                     else if (attributeName.Contains( "Baptismal Date") && !person.Attributes.ContainsKey( baptismDateAttribute.Key ) && startDate.HasValue )
                                     {
-                                        AddPersonAttribute( baptismDateAttribute, person, startDate.Value.ToString( "yyyy-MM-dd" ));
+                                        AddPersonAttribute( baptismDateAttribute, person, startDate.Value.ToString( "o" ));
                                     }
                                     else if ( attributeName.Contains( "Child Dedication Dat" ) && !person.Attributes.ContainsKey( childDedicationDateAttribute.Key ) )
                                     {
-                                        AddPersonAttribute( childDedicationDateAttribute, person, startDate.Value.ToString( "yyyy-MM-dd" ) );
+                                        AddPersonAttribute( childDedicationDateAttribute, person, startDate.Value.ToString( "o" ) );
                                     }
 
                                     if ( !newPeopleAttributes.ContainsKey( matchingPerson.PersonId ) )
