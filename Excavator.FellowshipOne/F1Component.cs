@@ -62,6 +62,18 @@ namespace Excavator.F1
             get { return ".mdf"; }
         }
 
+        public const string BATCH_TABLE_NAME = "Batch";
+        public const string USERS_TABLE_NAME = "Users";
+        public const string COMMUNICATION_TABLE_NAME = "Communication";
+        public const string ACCOUNT_TABLE_NAME = "Account";
+        public const string COMPANY_TABLE_NAME = "Company";
+        public const string CONTRIBUTION_TABLE_NAME = "Contribution";
+        public const string ADDRESS_TABLE_NAME = "Household_Address";
+        public const string INDIVIDUAL_HOUSEHOLD_TABLE_NAME = "Individual_Household";
+        public const string NOTES_TABLE = "Notes";
+        public const string PLEDGE_TABLE_NAME = "Pledge";
+        public const string ATTRIBUTE_TABLE_NAME = "Attribute";
+
         /// <summary>
         /// The local database
         /// </summary>
@@ -168,13 +180,13 @@ namespace Excavator.F1
             LoadExistingRockData();
 
             ReportProgress( 0, "Checking for existing people..." );
-            bool isValidImport = ImportedPeople.Any() || tableList.Any( n => n.Name.Equals( "Individual_Household" ) );
+            bool isValidImport = ImportedPeople.Any() || tableList.Any( n => n.Name.Equals( INDIVIDUAL_HOUSEHOLD_TABLE_NAME ) );
 
             var tableDependencies = new List<string>();
-            tableDependencies.Add( "Batch" );                // needed to attribute contributions properly
-            tableDependencies.Add( "Users" );                // needed for notes, user logins
-            tableDependencies.Add( "Company" );              // needed to attribute any business items
-            tableDependencies.Add( "Individual_Household" ); // needed for just about everything
+            tableDependencies.Add( BATCH_TABLE_NAME );                // needed to attribute contributions properly
+            tableDependencies.Add( USERS_TABLE_NAME );                // needed for notes, user logins
+            tableDependencies.Add( COMPANY_TABLE_NAME );              // needed to attribute any business items
+            tableDependencies.Add( INDIVIDUAL_HOUSEHOLD_TABLE_NAME ); // needed for just about everything
 
             if ( isValidImport )
             {
@@ -191,47 +203,47 @@ namespace Excavator.F1
                 {
                     switch ( table.Name )
                     {
-                        case "Account":
+                        case ACCOUNT_TABLE_NAME:
                             MapBankAccount( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
-                        case "Batch":
+                        case BATCH_TABLE_NAME:
                             MapBatch( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
-                        case "Communication":
+                        case COMMUNICATION_TABLE_NAME:
                             MapCommunication( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
-                        case "Company":
+                        case COMPANY_TABLE_NAME:
                             MapCompany( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
-                        case "Contribution":
+                        case CONTRIBUTION_TABLE_NAME:
                             MapContribution( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
-                        case "Household_Address":
+                        case ADDRESS_TABLE_NAME:
                             MapFamilyAddress( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
-                        case "Individual_Household":
+                        case INDIVIDUAL_HOUSEHOLD_TABLE_NAME:
                             MapPerson( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
-                        case "Notes":
+                        case NOTES_TABLE:
                             MapNotes( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
-                        case "Pledge":
+                        case PLEDGE_TABLE_NAME:
                             MapPledge( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
-                        case "Users":
+                        case USERS_TABLE_NAME:
                             MapUsers( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
-                        case "Attribute":
+                        case ATTRIBUTE_TABLE_NAME:
                             MapAttributes( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
