@@ -296,7 +296,7 @@ namespace Excavator.F1
             var familyList = new List<Group>();
             var visitorList = new List<Group>();
             var previousNamesList = new Dictionary<Guid, string>();
-            var householdCampusList = new List<string>();
+            var primaryCampus = new CampusService( lookupContext ).Queryable().FirstOrDefault();
 
 
             List<Note> noteList = new List<Note>();
@@ -308,12 +308,10 @@ namespace Excavator.F1
             foreach ( var groupedRows in tableData.GroupBy<Row, int?>( r => r["Household_ID"] as int? ) )
             {
                 var familyGroup = new Group();
-                householdCampusList.Clear();
 
                 foreach ( var row in groupedRows.Where( r => r != null ) )
                 {
                     var familyRoleId = FamilyRole.Adult;
-                    string currentCampus = string.Empty;
                     int? individualId = row["Individual_ID"] as int?;
                     int? householdId = row["Household_ID"] as int?;
                     var personKeys = GetPersonKeys( individualId, householdId );
@@ -422,11 +420,10 @@ namespace Excavator.F1
                                 person.ConnectionStatusValueId = visitorStatusId;
                             }
                             //Rock Attendee Connection Status
-                            else if ( memberStatus == "attendee" || memberStatus == "deceased" || memberStatus == "inactive partner" || (memberStatus == "inactive member" && attendeeSubStatusMaps.Contains(subMemberStatus)))
+                            else if ( memberStatus == "attendee" || memberStatus == "deceased" || memberStatus == "inactive partner" || memberStatus == "inactive member")
                             {
                                 if (memberStatus == "deceased" )
                                 {
-                                    
                                     person.IsDeceased = true;
                                     person.RecordStatusReasonValueId = statusReasonDeceasedId;
                                     person.RecordStatusValueId = recordStatusInactiveId;
@@ -449,14 +446,13 @@ namespace Excavator.F1
                                     person.RecordStatusReasonValueId = statusReasonNoActivityId;
                                     person.RecordStatusValueId = recordStatusInactiveId;
                                 }
-                                else if (memberStatus == "inactive member" && (subMemberStatus == "attends another church" || string.IsNullOrWhiteSpace(subMemberStatus)) || memberStatus == "inactive partner")
+                                else if (subMemberStatus == "attends another church" || string.IsNullOrWhiteSpace(subMemberStatus))
                                 {
                                     person.RecordStatusValueId = recordStatusInactiveId;
                                     person.RecordStatusReasonValueId = statusReasonNoActivityId;
                                 }
                                 person.ConnectionStatusValueId = attendeeStatusId;
                             }
-                            
                             else if ( memberStatus == "contributor only" )
                             {
                                 person.RecordStatusValueId = recordStatusActiveId;
@@ -494,13 +490,7 @@ namespace Excavator.F1
                                 person.RecordStatusValueId = recordStatusActiveId;
                             }
                         }
-
-                        string campus = row["SubStatus_Name"] as string;
-                        if ( campus != null )
-                        {
-                            currentCampus = campus;
-                        }
-
+                        
                         string status_comment = row["Status_Comment"] as string;
                         if ( status_comment != null )
                         {
@@ -575,7 +565,6 @@ namespace Excavator.F1
 
                         if ( familyRoleId != FamilyRole.Visitor )
                         {
-                            householdCampusList.Add( currentCampus );
                             familyGroup.Members.Add( groupMember );
                             familyGroup.ForeignKey = householdId.ToString();
                             familyGroup.ForeignId = householdId;
@@ -588,8 +577,7 @@ namespace Excavator.F1
                             visitorGroup.ForeignKey = householdId.ToString();
                             visitorGroup.ForeignId = householdId;
                             visitorGroup.Name = person.LastName + " Family";
-                            visitorGroup.CampusId = CampusList.Where( c => c.Name.StartsWith( currentCampus ) || c.ShortCode == currentCampus )
-                                .Select( c => (int?)c.Id ).FirstOrDefault();
+                            visitorGroup.CampusId = primaryCampus.Id;
                             familyList.Add( visitorGroup );
                             completed += visitorGroup.Members.Count;
 
@@ -603,14 +591,7 @@ namespace Excavator.F1
                     familyGroup.Name = familyGroup.Members.OrderByDescending( p => p.Person.Age )
                         .FirstOrDefault().Person.LastName + " Family";
                     familyGroup.GroupTypeId = familyGroupTypeId;
-
-                    string primaryHouseholdCampus = householdCampusList.GroupBy( c => c ).OrderByDescending( c => c.Count() )
-                        .Select( c => c.Key ).FirstOrDefault();
-                    if ( !string.IsNullOrWhiteSpace( primaryHouseholdCampus ) )
-                    {
-                        familyGroup.CampusId = CampusList.Where( c => c.Name.StartsWith( primaryHouseholdCampus ) || c.ShortCode == primaryHouseholdCampus )
-                             .Select( c => (int?)c.Id ).FirstOrDefault();
-                    }
+                    familyGroup.CampusId = primaryCampus.Id;
 
                     familyList.Add( familyGroup );
                     completed += familyGroup.Members.Count;
