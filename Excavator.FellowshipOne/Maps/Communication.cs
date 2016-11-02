@@ -212,7 +212,7 @@ namespace Excavator.F1
                                     // this is a different email, assign it to SecondaryEmail
                                     
                                 }
-                                else if ( !person.Email.Equals( value ) && !person.Attributes.ContainsKey( SecondaryEmailAttribute.Key ) )
+                                else if ( (string.IsNullOrWhiteSpace(person.Email) || !person.Email.Equals( value )) && !person.Attributes.ContainsKey( SecondaryEmailAttribute.Key ) )
                                 {
                                     AddPersonAttribute( SecondaryEmailAttribute, person, value );
                                 }
