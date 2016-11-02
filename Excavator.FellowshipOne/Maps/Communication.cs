@@ -33,6 +33,8 @@ namespace Excavator.F1
     /// </summary>
     public partial class F1Component
     {
+        private const string F1_PRIMARY_EMAIL = "Email";
+
         /// <summary>
         /// Maps the communication data.
         /// </summary>
@@ -195,7 +197,7 @@ namespace Excavator.F1
                                     AddPersonAttribute( InFellowshipLoginAttribute, person, value );
                                     AddUserLogin( AuthProviderEntityTypeId, person, value );
                                 }
-                                else if ( value.IsEmail() )
+                                else if ( value.IsEmail() && type == F1_PRIMARY_EMAIL )
                                 {
                                     // person email is empty
                                     if ( string.IsNullOrWhiteSpace( person.Email ) )
@@ -208,10 +210,11 @@ namespace Excavator.F1
                                         lookupContext.SaveChanges( DisableAuditing );
                                     }
                                     // this is a different email, assign it to SecondaryEmail
-                                    else if ( !person.Email.Equals( value ) && !person.Attributes.ContainsKey( SecondaryEmailAttribute.Key ) )
-                                    {
-                                        AddPersonAttribute( SecondaryEmailAttribute, person, value );
-                                    }
+                                    
+                                }
+                                else if ( !person.Email.Equals( value ) && !person.Attributes.ContainsKey( SecondaryEmailAttribute.Key ) )
+                                {
+                                    AddPersonAttribute( SecondaryEmailAttribute, person, value );
                                 }
                                 else if ( type.Contains( "Twitter" ) && !person.Attributes.ContainsKey( twitterAttribute.Key ) )
                                 {
