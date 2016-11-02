@@ -178,6 +178,10 @@ namespace Excavator.F1
                                     {
                                         AddPersonAttribute( childDedicationDateAttribute, person, startDate.Value.ToString( "o" ) );
                                     }
+                                    else if ( attributeName.Contains( "Hire Date" ) && !person.Attributes.ContainsKey( hireDateAttribute.Key ))
+                                    {
+                                        AddPersonAttribute( hireDateAttribute, person, startDate.Value.ToString( "o" ) );
+                                    }
 
                                     if ( !newPeopleAttributes.ContainsKey( matchingPerson.PersonId ) )
                                     {
