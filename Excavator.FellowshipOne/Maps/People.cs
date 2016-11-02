@@ -62,6 +62,9 @@ namespace Excavator.F1
     /// </summary>
     public partial class F1Component
     {
+        private Campus _tceCampus;
+        private Campus _primaryCampus;
+
         /// <summary>
         /// Maps the company.
         /// </summary>
@@ -227,6 +230,7 @@ namespace Excavator.F1
         {
             var lookupContext = new RockContext();
             var groupTypeRoleService = new GroupTypeRoleService( lookupContext );
+            var campusService = new CampusService(lookupContext);
 
             // Marital statuses: Married, Single, Separated, etc
             var maritalStatusTypes = DefinedTypeCache.Read( new Guid( Rock.SystemGuid.DefinedType.PERSON_MARITAL_STATUS ), lookupContext ).DefinedValues;
@@ -238,11 +242,7 @@ namespace Excavator.F1
             int eventParticipantStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Value == "Event Participant" ).Id;
             int dummyRecordStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Value == "Dummy Record" ).Id;
             int contributorOnlyStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Value == "Contributor Only" ).Id;
-
-            //The Crossing: Status Maps
-            List<string> attendeeSubStatusMaps = new List<string>() { "moved out of area", "no activity in past 3 years", "attends another church"};
-            List<string> visitorMaps = new List<string>() { "first time visitor", "deceased", "inactive member", "inactive partner" };
-
+            int nonAttendingStatusId = connectionStatusTypes.FirstOrDefault(dv => dv.Value == "Non-Attending Family").Id;
 
             // Record statuses/reasons: Active, Inactive, Pending, Deceased, etc
             var recordStatuses = DefinedTypeCache.Read( new Guid( Rock.SystemGuid.DefinedType.PERSON_RECORD_STATUS ) ).DefinedValues;
@@ -291,12 +291,12 @@ namespace Excavator.F1
             var employerAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "Employer", StringComparison.InvariantCultureIgnoreCase ) ) );
             var positionAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "Position", StringComparison.InvariantCultureIgnoreCase ) ) );
             var schoolAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "School", StringComparison.InvariantCultureIgnoreCase ) ) );
-            var tceAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key == "TCE" ) );
 
             var familyList = new List<Group>();
             var visitorList = new List<Group>();
             var previousNamesList = new Dictionary<Guid, string>();
-            var primaryCampus = new CampusService( lookupContext ).Queryable().FirstOrDefault();
+            _primaryCampus = campusService.Queryable().FirstOrDefault();
+            _tceCampus = campusService.Queryable().FirstOrDefault(c => c.Name == "TCE Campus");
 
 
             List<Note> noteList = new List<Note>();
@@ -397,104 +397,99 @@ namespace Excavator.F1
                         {
                             memberStatus = memberStatus.ToLower();
 
-                            //Rock Visitor Connection Status
-                            if ( memberStatus == "visitor" || memberStatus == "first time visitor" || (memberStatus == "inactive member" && (subMemberStatus == "TCE" || subMemberStatus == "Parent of youth,  not attendee" )))
+                            switch (memberStatus)
                             {
-                                
-                                if (memberStatus != "inactive member" )
-                                {
+                                case "attendee":
                                     person.RecordStatusValueId = recordStatusActiveId;
-                                }
-                                else
-                                {
-                                    person.RecordStatusValueId = recordStatusInactiveId;
-                                }
-                                if ( subMemberStatus == "TCE" )
-                                {
-                                    AddPersonAttribute( tceAttribute, person, "True" );
-                                }
-
-                                // F1 can designate visitors by member status or household position
-                                familyRoleId = FamilyRole.Visitor;
-
-                                person.ConnectionStatusValueId = visitorStatusId;
-                            }
-                            //Rock Attendee Connection Status
-                            else if ( memberStatus == "attendee" || memberStatus == "deceased" || memberStatus == "inactive partner" || memberStatus == "inactive member")
-                            {
-                                if (memberStatus == "deceased" )
-                                {
+                                    person.ConnectionStatusValueId = attendeeStatusId;
+                                    break;
+                                case "event prospect":
+                                        person.RecordStatusValueId = recordStatusActiveId;
+                                        person.ConnectionStatusValueId = eventParticipantStatusId;
+                                    if ( !string.IsNullOrWhiteSpace( subMemberStatus ) )
+                                        {
+                                            var personNote = new Note();
+                                            personNote.ForeignId = person.ForeignId;
+                                            personNote.NoteTypeId = personalNoteTypeId;
+                                            personNote.CreatedByPersonAliasId = ImportPersonAliasId;
+                                            personNote.CreatedDateTime = ImportDateTime;
+                                            personNote.Text = "Attended " + subMemberStatus + " event";
+                                            personNote.Caption = string.Format( "General Note" );
+                                            noteList.Add( personNote );
+                                        }
+                                    break;
+                                case "contributor only" :
+                                        person.RecordStatusValueId = recordStatusActiveId;
+                                        person.ConnectionStatusValueId = contributorOnlyStatusId;
+                                    break;
+                                case "dummy record":
+                                        person.RecordStatusValueId = recordStatusActiveId;
+                                        person.ConnectionStatusValueId = dummyRecordStatusId;
+                                    break;
+                                case "deceased":
                                     person.IsDeceased = true;
                                     person.RecordStatusReasonValueId = statusReasonDeceasedId;
                                     person.RecordStatusValueId = recordStatusInactiveId;
-                                }
-                                else if ( memberStatus == "attendee" )
-                                {
+                                    person.ConnectionStatusValueId = attendeeStatusId;
+                                    break;
+
+                                case "visitor":
+                                    person.RecordStatusValueId = recordStatusInactiveId;
+                                    person.ConnectionStatusValueId = visitorStatusId;
+                                    person.RecordStatusReasonValueId = statusReasonNoActivityId;
+                                    break;
+                                case "first time visitor":
                                     person.RecordStatusValueId = recordStatusActiveId;
-                                    if ( subMemberStatus == "TCE" )
+                                    person.ConnectionStatusValueId = visitorStatusId;
+                                    break;
+                                case "inactive partner":
+                                    person.ConnectionStatusValueId = attendeeStatusId;
+                                    person.RecordStatusValueId = recordStatusInactiveId;
+                                    person.RecordStatusReasonValueId = statusReasonNoLongerAttendingId;
+                                    break;
+                                case "inactive member":
+                                    //All inactive except for dummy records
+                                    person.RecordStatusValueId = recordStatusInactiveId;
+                                    // attendee except for Parents of youth not attending are non-attenders, out of states are visitor
+                                    person.ConnectionStatusValueId = attendeeStatusId;
+
+                                    switch (subMemberStatus)
                                     {
-                                        AddPersonAttribute( tceAttribute, person, "True" );
+                                        case "moved out of area":
+                                            person.RecordStatusReasonValueId = statusReasonMovedId;
+                                            break;
+                                        case "no activity in past 3 years":
+                                            person.RecordStatusReasonValueId = statusReasonNoActivityId;
+                                            break;
+                                        case "attends another church":
+                                            person.RecordStatusReasonValueId = statusReasonNoLongerAttendingId;
+                                            break;
+
+                                        case "dummy record":
+                                            person.RecordStatusValueId = recordStatusActiveId;
+                                            break;
+                                        case "Parent of youth, not attendee":
+                                            person.ConnectionStatusValueId = nonAttendingStatusId;
+                                            person.RecordStatusReasonValueId = statusReasonNoLongerAttendingId;
+                                            break;
+                                        case "out of state address":
+                                            person.ConnectionStatusValueId = visitorStatusId;
+                                            person.RecordStatusReasonValueId = statusReasonNoLongerAttendingId;
+                                            break;
+                                        default:
+                                            person.RecordStatusReasonValueId = statusReasonNoLongerAttendingId;
+                                            break;
                                     }
-                                }
-                                else if ( subMemberStatus == "moved out of area")
-                                {
-                                    person.RecordStatusReasonValueId = statusReasonMovedId;
-                                    person.RecordStatusValueId = recordStatusInactiveId;
-                                }
-                                else if ( subMemberStatus == "no activity in past 3 years")
-                                {
-                                    person.RecordStatusReasonValueId = statusReasonNoActivityId;
-                                    person.RecordStatusValueId = recordStatusInactiveId;
-                                }
-                                else if (subMemberStatus == "attends another church" || string.IsNullOrWhiteSpace(subMemberStatus))
-                                {
-                                    person.RecordStatusValueId = recordStatusInactiveId;
-                                    person.RecordStatusReasonValueId = statusReasonNoActivityId;
-                                }
-                                person.ConnectionStatusValueId = attendeeStatusId;
-                            }
-                            else if ( memberStatus == "contributor only" )
-                            {
-                                person.RecordStatusValueId = recordStatusActiveId;
-                                person.ConnectionStatusValueId = contributorOnlyStatusId;
-                            }
-                            else if ( memberStatus == "dummy record" )
-                            {
-                                person.RecordStatusValueId = recordStatusActiveId;
-                                person.ConnectionStatusValueId = dummyRecordStatusId;
-                            }
-                            else if (memberStatus == "event prospect" )
-                            {
-                                person.RecordStatusValueId = recordStatusActiveId;
-                                person.ConnectionStatusValueId = eventParticipantStatusId;
+                                    break;
 
-                                if (!string.IsNullOrWhiteSpace( subMemberStatus ) )
-                                {
-                                    var personNote = new Note();
-                                    personNote.ForeignId = person.ForeignId;
-                                    personNote.NoteTypeId = personalNoteTypeId;
-                                    personNote.CreatedByPersonAliasId = ImportPersonAliasId;
-                                    personNote.CreatedDateTime = ImportDateTime;
-                                    personNote.Text = "Attended "+ subMemberStatus + " event";
-                                    personNote.Caption = string.Format( "General Note");
-                                    noteList.Add( personNote );
-                                }
                             }
-                            else
-                            {
-                                // Lookup others that may be user-defined
-                                var customConnectionType = connectionStatusTypes.Where( dv => dv.Value == memberStatus )
-                                    .Select( dv => (int?)dv.Id ).FirstOrDefault();
-
-                                person.ConnectionStatusValueId = customConnectionType ?? attendeeStatusId;
-                                person.RecordStatusValueId = recordStatusActiveId;
-                            }
+                            AddCampus( familyGroup, subMemberStatus == "TCE" );
                         }
                         
-                        string status_comment = row["Status_Comment"] as string;
-                        if ( status_comment != null )
+                        string statusComment = row["Status_Comment"] as string;
+                        if ( statusComment != null )
                         {
-                            person.SystemNote = status_comment;
+                            person.SystemNote = statusComment;
                         }
 
                         string previousName = row["Former_Name"] as string;
@@ -505,8 +500,6 @@ namespace Excavator.F1
 
                         // set a processing flag to keep visitors from receiving household info
                         person.ReviewReasonNote = familyRoleId.ToString();
-
-                        
 
                         // IndividualId already defined in scope
                         AddPersonAttribute( IndividualIdAttribute, person, individualId.ToString() );
@@ -577,7 +570,7 @@ namespace Excavator.F1
                             visitorGroup.ForeignKey = householdId.ToString();
                             visitorGroup.ForeignId = householdId;
                             visitorGroup.Name = person.LastName + " Family";
-                            visitorGroup.CampusId = primaryCampus.Id;
+                            visitorGroup.CampusId = _primaryCampus.Id;
                             familyList.Add( visitorGroup );
                             completed += visitorGroup.Members.Count;
 
@@ -591,7 +584,6 @@ namespace Excavator.F1
                     familyGroup.Name = familyGroup.Members.OrderByDescending( p => p.Person.Age )
                         .FirstOrDefault().Person.LastName + " Family";
                     familyGroup.GroupTypeId = familyGroupTypeId;
-                    familyGroup.CampusId = primaryCampus.Id;
 
                     familyList.Add( familyGroup );
                     completed += familyGroup.Members.Count;
@@ -621,6 +613,15 @@ namespace Excavator.F1
 
             ReportProgress( 100, string.Format( "Finished person import: {0:N0} people imported.", completed ) );
         }
+
+        private void AddCampus(Group family, bool tce)
+        {
+            if (!family.CampusId.HasValue)
+            {
+                family.CampusId = tce ? _tceCampus.Id : _primaryCampus.Id;
+            }
+        }
+        
 
         /// <summary>
         /// Saves the people.
