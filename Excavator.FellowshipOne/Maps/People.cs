@@ -452,8 +452,8 @@ namespace Excavator.F1
                                     person.RecordStatusValueId = recordStatusInactiveId;
                                     // attendee except for Parents of youth not attending are non-attenders, out of states are visitor
                                     person.ConnectionStatusValueId = attendeeConnectionStatusId;
-
-                                    switch (subMemberStatus.ToLower())
+                                    
+                                    switch (string.IsNullOrEmpty( subMemberStatus ) ? "" : subMemberStatus.ToLower())
                                     {
                                         case "moved out of area":
                                             person.RecordStatusReasonValueId = connectionStatusReasonMovedId;
