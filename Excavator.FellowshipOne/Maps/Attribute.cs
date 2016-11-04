@@ -39,7 +39,6 @@ namespace Excavator.F1
             int percentage = ( totalRows - 1 ) / 100 + 1;
             ReportProgress( 0, string.Format( "Verifying attribute value import ({0:N0} found to import in total.", totalRows ) );
 
-            //TODO Look at the line before this
             foreach ( var groupedRows in tableData.GroupBy<Row, int?>( r => r["Individual_Id"] as int? ) )
             {
                 foreach ( var row in groupedRows.Where( r => r != null ) )
@@ -66,7 +65,7 @@ namespace Excavator.F1
                                 if ( !newPeopleAttributes.ContainsKey( matchingPerson.PersonId ) )
                                 {
                                     // not in dictionary, get person from database
-                                    person = personService.Queryable( includeDeceased: true ).FirstOrDefault( p => p.Id == matchingPerson.PersonId );
+                                    person = personService.Queryable( true ).FirstOrDefault( p => p.Id == matchingPerson.PersonId );
                                 }
                                 else
                                 {
