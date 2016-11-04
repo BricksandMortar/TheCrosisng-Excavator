@@ -388,24 +388,24 @@ namespace Excavator.F1
 
                     string fundName = row["Fund_Name"] as string;
                     string subFund = row["Sub_Fund_Name"] as string;
-                    string fundGLAccount = row["Fund_GL_Account"] as string;
+                    string fundGlAccount = row["Fund_GL_Account"] as string;
                     string subFundGLAccount = row["Sub_Fund_GL_Account"] as string;
-                    Boolean? isFundActive = row["Fund_Is_active"] as Boolean?;
-                    decimal? statedValue = row["Stated_Value"] as decimal?;
-                    decimal? amount = row["Amount"] as decimal?;
+                    var isFundActive = row["Fund_Is_active"] as bool?;
+                    var statedValue = row["Stated_Value"] as decimal?;
+                    var amount = row["Amount"] as decimal?;
                     if ( fundName != null & amount != null )
                     {
                         int transactionAccountId;
                         var parentAccount = accountList.FirstOrDefault( a => a.Name.Equals( fundName ) && a.CampusId == null );
                         if ( parentAccount == null )
                         {
-                            parentAccount = AddAccount( lookupContext, fundName, fundGLAccount, null, null, isFundActive );
+                            parentAccount = AddAccount( lookupContext, fundName, fundGlAccount, null, null, isFundActive );
                             accountList.Add( parentAccount );
                         }
 
                         if ( subFund != null )
                         {
-                            Boolean? subFundIsActive = row["Sub_Fund_Is_active"] as Boolean?;
+                            var subFundIsActive = row["Sub_Fund_Is_active"] as bool?;
                             int? campusFundId = null;
                             // assign a campus if the subfund is a campus fund
                             var campusFund = CampusList.FirstOrDefault( c => subFund.StartsWith( c.Name ) || subFund.StartsWith( c.ShortCode ) );
@@ -578,7 +578,7 @@ namespace Excavator.F1
                                 }
 
                                 // add info to easily find/assign this fund in the view
-                                subFund = string.Format( "{0} {1}", subFund, fundName );
+                                subFund = subFund.Truncate(50);
 
                                 var childAccount = accountList.FirstOrDefault( c => c.Name.Equals( subFund ) && c.ParentAccountId == parentAccount.Id );
                                 if ( childAccount == null )
@@ -652,7 +652,7 @@ namespace Excavator.F1
             account.PublicName = fundName;
             account.IsTaxDeductible = true;
             account.IsActive = isActive ?? true;
-            account.CampusId = fundCampusId;
+            account.CampusId = fundCampusId ?? GetFundId(fundName);
             account.ParentAccountId = parentAccountId;
             account.CreatedByPersonAliasId = ImportPersonAliasId;
 
@@ -660,6 +660,15 @@ namespace Excavator.F1
             lookupContext.SaveChanges( DisableAuditing );
 
             return account;
+        }
+
+        private static int? GetFundId(string fundName)
+        {
+            if (fundName == "4 - TCE - Contributions" || fundName == "Si Se Puede ")
+            {
+                return CampusList.AsQueryable().FirstOrDefault( c => c.ShortCode == "TCE" )?.Id;
+            }
+            return CampusList.AsQueryable().FirstOrDefault( c => c.ShortCode == "MAIN" )?.Id;
         }
     }
 }
