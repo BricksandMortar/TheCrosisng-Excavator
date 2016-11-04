@@ -237,12 +237,12 @@ namespace Excavator.F1
 
             // Connection statuses: Member, Visitor, Attendee, etc
             var connectionStatusTypes = DefinedTypeCache.Read( new Guid( Rock.SystemGuid.DefinedType.PERSON_CONNECTION_STATUS ), lookupContext ).DefinedValues;
-            int attendeeStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_CONNECTION_STATUS_ATTENDEE ) ).Id;
-            int visitorStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_CONNECTION_STATUS_VISITOR ) ).Id;
-            int eventParticipantStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Value == "Event Participant" ).Id;
-            int dummyRecordStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Value == "Dummy Record" ).Id;
-            int contributorOnlyStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Value == "Contributor Only" ).Id;
-            int nonAttendingStatusId = connectionStatusTypes.FirstOrDefault(dv => dv.Value == "Non-Attending Family").Id;
+            int attendeeConnectionStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_CONNECTION_STATUS_ATTENDEE ) ).Id;
+            int visitorConnectionStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_CONNECTION_STATUS_VISITOR ) ).Id;
+            int eventParticipantConnectionStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Value == "Event Participant" ).Id;
+            int dummyRecordConnectionStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Value == "Dummy Record" ).Id;
+            int contributorOnlyConnectionStatusId = connectionStatusTypes.FirstOrDefault( dv => dv.Value == "Contributor Only" ).Id;
+            int nonAttendingConnectionStatusId = connectionStatusTypes.FirstOrDefault(dv => dv.Value == "Non-Attending Family").Id;
 
             // Record statuses/reasons: Active, Inactive, Pending, Deceased, etc
             var recordStatuses = DefinedTypeCache.Read( new Guid( Rock.SystemGuid.DefinedType.PERSON_RECORD_STATUS ) ).DefinedValues;
@@ -251,10 +251,10 @@ namespace Excavator.F1
             int recordStatusActiveId = recordStatuses.FirstOrDefault( r => r.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_ACTIVE ) ).Id;
             int recordStatusInactiveId = recordStatuses.FirstOrDefault( r => r.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE ) ).Id;
             int recordStatusPendingId = recordStatuses.FirstOrDefault( r => r.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_PENDING ) ).Id;
-            int statusReasonDeceasedId = recordStatusReasons.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_REASON_DECEASED ) ).Id;
-            int statusReasonNoActivityId = recordStatusReasons.Where( dv => dv.Value == "No Activity" ).Select( dv => dv.Id ).FirstOrDefault();
-            int statusReasonMovedId = recordStatusReasons.Where( dv => dv.Value == "Moved" ).Select( dv => dv.Id ).FirstOrDefault();
-            int statusReasonNoLongerAttendingId = recordStatusReasons.Where( dv => dv.Value == "No Longer Attending" ).Select( dv => dv.Id ).FirstOrDefault();
+            int connectionStatusReasonDeceasedId = recordStatusReasons.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_REASON_DECEASED ) ).Id;
+            int connectionStatusReasonNoActivityId = recordStatusReasons.Where( dv => dv.Value == "No Activity" ).Select( dv => dv.Id ).FirstOrDefault();
+            int connectionStatusReasonMovedId = recordStatusReasons.Where( dv => dv.Value == "Moved" ).Select( dv => dv.Id ).FirstOrDefault();
+            int connectionStatusReasonNoLongerAttendingId = recordStatusReasons.Where( dv => dv.Value == "No Longer Attending" ).Select( dv => dv.Id ).FirstOrDefault();
 
             var personalNoteTypeId = new NoteTypeService( lookupContext ).Get( new Guid( Rock.SystemGuid.NoteType.PERSON_TIMELINE_NOTE ) ).Id;
 
@@ -401,11 +401,11 @@ namespace Excavator.F1
                             {
                                 case "attendee":
                                     person.RecordStatusValueId = recordStatusActiveId;
-                                    person.ConnectionStatusValueId = attendeeStatusId;
+                                    person.ConnectionStatusValueId = attendeeConnectionStatusId;
                                     break;
                                 case "event prospect":
                                         person.RecordStatusValueId = recordStatusActiveId;
-                                        person.ConnectionStatusValueId = eventParticipantStatusId;
+                                        person.ConnectionStatusValueId = eventParticipantConnectionStatusId;
                                     if ( !string.IsNullOrWhiteSpace( subMemberStatus ) )
                                         {
                                             var personNote = new Note();
@@ -420,64 +420,63 @@ namespace Excavator.F1
                                     break;
                                 case "contributor only" :
                                         person.RecordStatusValueId = recordStatusActiveId;
-                                        person.ConnectionStatusValueId = contributorOnlyStatusId;
+                                        person.ConnectionStatusValueId = contributorOnlyConnectionStatusId;
                                     break;
                                 case "dummy record":
                                         person.RecordStatusValueId = recordStatusActiveId;
-                                        person.ConnectionStatusValueId = dummyRecordStatusId;
+                                        person.ConnectionStatusValueId = dummyRecordConnectionStatusId;
                                     break;
                                 case "deceased":
                                     person.IsDeceased = true;
-                                    person.RecordStatusReasonValueId = statusReasonDeceasedId;
+                                    person.RecordStatusReasonValueId = connectionStatusReasonDeceasedId;
                                     person.RecordStatusValueId = recordStatusInactiveId;
-                                    person.ConnectionStatusValueId = attendeeStatusId;
+                                    person.ConnectionStatusValueId = attendeeConnectionStatusId;
                                     break;
 
                                 case "visitor":
                                     person.RecordStatusValueId = recordStatusInactiveId;
-                                    person.ConnectionStatusValueId = visitorStatusId;
-                                    person.RecordStatusReasonValueId = statusReasonNoActivityId;
+                                    person.ConnectionStatusValueId = visitorConnectionStatusId;
+                                    person.RecordStatusReasonValueId = connectionStatusReasonNoActivityId;
                                     break;
                                 case "first time visitor":
                                     person.RecordStatusValueId = recordStatusActiveId;
-                                    person.ConnectionStatusValueId = visitorStatusId;
+                                    person.ConnectionStatusValueId = visitorConnectionStatusId;
                                     break;
                                 case "inactive partner":
-                                    person.ConnectionStatusValueId = attendeeStatusId;
+                                    person.ConnectionStatusValueId = attendeeConnectionStatusId;
                                     person.RecordStatusValueId = recordStatusInactiveId;
-                                    person.RecordStatusReasonValueId = statusReasonNoLongerAttendingId;
+                                    person.RecordStatusReasonValueId = connectionStatusReasonNoLongerAttendingId;
                                     break;
                                 case "inactive member":
                                     //All inactive except for dummy records
                                     person.RecordStatusValueId = recordStatusInactiveId;
                                     // attendee except for Parents of youth not attending are non-attenders, out of states are visitor
-                                    person.ConnectionStatusValueId = attendeeStatusId;
+                                    person.ConnectionStatusValueId = attendeeConnectionStatusId;
 
-                                    switch (subMemberStatus)
+                                    switch (subMemberStatus.ToLower())
                                     {
                                         case "moved out of area":
-                                            person.RecordStatusReasonValueId = statusReasonMovedId;
+                                            person.RecordStatusReasonValueId = connectionStatusReasonMovedId;
                                             break;
                                         case "no activity in past 3 years":
-                                            person.RecordStatusReasonValueId = statusReasonNoActivityId;
+                                            person.RecordStatusReasonValueId = connectionStatusReasonNoActivityId;
                                             break;
                                         case "attends another church":
-                                            person.RecordStatusReasonValueId = statusReasonNoLongerAttendingId;
+                                            person.RecordStatusReasonValueId = connectionStatusReasonNoLongerAttendingId;
                                             break;
-
                                         case "dummy record":
                                             person.RecordStatusValueId = recordStatusActiveId;
                                             break;
-                                        case "Parent of youth, not attendee":
-                                            person.ConnectionStatusValueId = nonAttendingStatusId;
-                                            person.RecordStatusReasonValueId = statusReasonNoLongerAttendingId;
+                                        case "parent of youth,  not attendee":
+                                            person.ConnectionStatusValueId = nonAttendingConnectionStatusId;
+                                            person.RecordStatusReasonValueId = connectionStatusReasonNoLongerAttendingId;
                                             break;
                                         case "out of state address":
-                                            person.ConnectionStatusValueId = visitorStatusId;
-                                            person.RecordStatusReasonValueId = statusReasonNoLongerAttendingId;
+                                            person.ConnectionStatusValueId = visitorConnectionStatusId;
+                                            person.RecordStatusReasonValueId = connectionStatusReasonNoLongerAttendingId;
                                             break;
                                         default:
-                                            person.RecordStatusReasonValueId = statusReasonNoLongerAttendingId;
+                                            person.RecordStatusReasonValueId = connectionStatusReasonNoLongerAttendingId;
                                             break;
                                     }
                                     break;
