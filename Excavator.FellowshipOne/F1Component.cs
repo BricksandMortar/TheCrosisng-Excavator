@@ -247,10 +247,9 @@ namespace Excavator.F1
                         case ATTRIBUTE_TABLE_NAME:
                             MapAttributes( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
-                        //case REQUIREMENTS_TABLE_NAME:
-                        //    MapRequirements( scanner.ScanTable( table.Name ).AsQueryable() );
 
-                        default:
+                        case REQUIREMENTS_TABLE_NAME:
+                            MapRequirements( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
                     }
                 }

@@ -191,8 +191,8 @@ namespace Excavator.F1
 
         private bool IsDateMoreRecent(AttributeCache dateAttribute, Person person, DateTime? date)
         {
-            return person.Attributes.ContainsKey(dateAttribute.Key) ||
-                   (date != null && (person.GetAttributeValue(dateAttribute.Key).AsDateTime() != null && person.GetAttributeValue( dateAttribute.Key ).AsDateTime() < date));
+            return !person.Attributes.ContainsKey(dateAttribute.Key) ||
+                   (date != null && person.GetAttributeValue(dateAttribute.Key).AsDateTime() != null && person.GetAttributeValue( dateAttribute.Key ).AsDateTime() < date);
         }
     }
 
