@@ -73,6 +73,7 @@ namespace Excavator.F1
         public const string NOTES_TABLE = "Notes";
         public const string PLEDGE_TABLE_NAME = "Pledge";
         public const string ATTRIBUTE_TABLE_NAME = "Attribute";
+        public const string REQUIREMENTS_TABLE_NAME = "Requirement";
 
         /// <summary>
         /// The local database
@@ -247,7 +248,8 @@ namespace Excavator.F1
                             MapAttributes( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
 
-                        default:
+                        case REQUIREMENTS_TABLE_NAME:
+                            MapRequirements( scanner.ScanTable( table.Name ).AsQueryable() );
                             break;
                     }
                 }
