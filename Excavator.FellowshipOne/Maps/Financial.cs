@@ -466,6 +466,8 @@ namespace Excavator.F1
                     {
                         SaveContributions( newTransactions );
                         newTransactions.Clear();
+                        lookupContext = new RockContext();
+                        
                         ReportPartialProgress();
                     }
                 }
