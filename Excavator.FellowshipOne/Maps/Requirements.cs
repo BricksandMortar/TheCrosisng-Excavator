@@ -44,7 +44,7 @@ namespace Excavator.F1
             var backgroundCheckResultAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "BackgroundCheckResult", StringComparison.InvariantCultureIgnoreCase ) ) );
 
             var newPeopleAttributes = new Dictionary<int, Person>();
-            
+
 
             int completed = 0;
             int totalRows = tableData.Count();
@@ -59,97 +59,128 @@ namespace Excavator.F1
 
                     var individualId = row[RequirementColumnNames.IndividualId] as int?;
 
-                    if (individualId == null)
+                    if ( !individualId.HasValue )
                     {
                         continue;
                     }
                     var matchingPerson = GetPersonKeys( individualId, null, false );
-                        
+
+                    Person person;
                     if ( matchingPerson != null )
                     {
+                        if ( !newPeopleAttributes.ContainsKey( matchingPerson.PersonId ) )
+                        {
+                            // not in dictionary, get person from database
+                            person = personService.Queryable( true ).FirstOrDefault( p => p.Id == matchingPerson.PersonId );
+                        }
+                        else
+                        {
+                            // reuse person from dictionary
+                            person = newPeopleAttributes[matchingPerson.PersonId];
+                        }
+                    }
+                    else
+                    {
+                        person = personService.Queryable( true ).FirstOrDefault( p => p.ForeignId == individualId.Value );
+                    }
 
-                        var requirementDate = row[RequirementColumnNames.RequirementDate] as DateTime?;
+                    if ( matchingPerson != null )
+                    {
+                        var requirementDate = row[RequirementColumnNames.RequirementDate].ToString().AsDateTime();
+                        if (requirementDate == null)
+                        {
+                            throw new Exception("Date is null!!!!");
+                        }
                         string requirementName = row[RequirementColumnNames.RequuirementName].ToString();
                         string requirementStatus = row[RequirementColumnNames.RequirementStatusName].ToString();
-                            
+
+                        if ( person != null )
                         {
-                            Person person;
-                                
+                            person.LoadAttributes();
+
+                            //
+                            //Requirements handling here
+                            //
+                            switch ( requirementName )
+                            {
+                                case APPLICATION_ON_FILE_REQUIREMENT_NAME:
+                                    if ( !person.Attributes.ContainsKey( applicationOnFileDateAttribute.Key ) || !person.Attributes.ContainsKey( applicationOnFileDateAttribute.Key ) )
+                                    {
+                                        AddOrUpdatePersonAttribute( applicationOnFileStatusAttribute, person,
+                                            GetNewStatus( requirementStatus ) );
+                                        AddOrUpdatePersonAttribute( applicationOnFileDateAttribute, person,
+                                            requirementDate.ToString() );
+                                    }
+                                    else if ( IsDateMoreRecent( applicationOnFileDateAttribute, person, requirementDate ) )
+                                    {
+                                        AddOrUpdatePersonAttribute(applicationOnFileStatusAttribute, person,
+                                            GetNewStatus( requirementStatus ));
+                                        AddOrUpdatePersonAttribute(applicationOnFileDateAttribute, person,
+                                            requirementDate.ToString());
+                                    }
+                                    break;
+                                case DRIVING_RECORD_CLEARANCE_REQUIREMENT_NAME:
+                                    if ( !person.Attributes.ContainsKey( drivingClearedDateAttribute.Key ) )
+                                    {
+                                        AddOrUpdatePersonAttribute( drivingClearedDateAttribute, person,
+                                            requirementDate.ToString() );
+                                    }
+                                    else if ( IsDateMoreRecent( drivingClearedDateAttribute, person, requirementDate ) )
+                                    {
+                                        AddOrUpdatePersonAttribute(drivingClearedDateAttribute, person,
+                                            requirementDate.ToString());
+                                    }
+                                    break;
+                                case CIA_CLEARANCE_REQUIREMENT_NAME:
+                                case MEGANS_LAW_CLEARANCE_REQUIREMENT_NAME:
+                                    if ( !person.Attributes.ContainsKey( backgroundCheckDateAttribute.Key ) || !person.Attributes.ContainsKey( backgroundCheckResultAttribute.Key ) )
+                                    {
+                                        AddOrUpdatePersonAttribute( backgroundCheckResultAttribute, person,
+                                            GetBackgroundStatus( requirementStatus ) );
+                                        AddOrUpdatePersonAttribute( backgroundCheckDateAttribute, person,
+                                            requirementDate.ToString() );
+                                        AddOrUpdatePersonAttribute( backgroundCheckResultAttribute, person, "True" );
+                                    }
+                                    else if ( IsDateMoreRecent( backgroundCheckDateAttribute, person, requirementDate ) )
+                                    {
+                                        AddOrUpdatePersonAttribute(backgroundCheckDateAttribute, person,
+                                            requirementDate.ToString());
+                                        AddOrUpdatePersonAttribute(backgroundCheckResultAttribute, person,
+                                            GetBackgroundStatus( requirementStatus ));
+                                    }
+                                    break;
+                                case F1_CONFIDENTIALITY_STAREMENT_REQUIREMENT_NAME:
+                                    if ( !person.Attributes.ContainsKey( f1ConfidentialityDateAttribute.Key ) )
+                                    {
+                                        AddOrUpdatePersonAttribute( f1ConfidentialityDateAttribute, person,
+                                            requirementDate.ToString() );
+                                    }
+                                    else if ( IsDateMoreRecent( f1ConfidentialityDateAttribute, person,
+                                        requirementDate ) )
+                                    {
+                                        AddOrUpdatePersonAttribute( f1ConfidentialityDateAttribute, person,
+                                            requirementDate.ToString() );
+                                    }
+                                    break;
+                            }
+
                             if ( !newPeopleAttributes.ContainsKey( matchingPerson.PersonId ) )
                             {
-                                // not in dictionary, get person from database
-                                person = personService.Queryable( true ).FirstOrDefault( p => p.Id == matchingPerson.PersonId );
+                                newPeopleAttributes.Add( matchingPerson.PersonId, person );
                             }
                             else
                             {
-                                // reuse person from dictionary
-                                person = newPeopleAttributes[matchingPerson.PersonId];
+                                newPeopleAttributes[matchingPerson.PersonId] = person;
                             }
-
-                            if ( person != null )
-                            {
-                                if ( person.Attributes == null || person.AttributeValues == null )
-                                {
-                                    // make sure we have valid objects to assign to
-                                    person.Attributes = new Dictionary<string, AttributeCache>();
-                                    person.AttributeValues = new Dictionary<string, AttributeValueCache>();
-                                }
-
-
-                                //
-                                //Requirements handling here
-                                //
-
-                                switch (requirementName)
-                                {
-                                    case APPLICATION_ON_FILE_REQUIREMENT_NAME:
-                                        if ( IsDateMoreRecent( applicationOnFileDateAttribute, person, requirementDate))
-                                        {
-                                            AddPersonAttribute( applicationOnFileStatusAttribute, person, GetNewStatus( requirementStatus ) );
-                                            AddPersonAttribute( applicationOnFileDateAttribute, person, requirementDate.ToString() );
-                                        }
-                                        break;
-                                    case DRIVING_RECORD_CLEARANCE_REQUIREMENT_NAME:
-                                        if (IsDateMoreRecent( drivingClearedDateAttribute, person, requirementDate))
-                                        {
-                                            AddPersonAttribute( drivingClearedDateAttribute, person, requirementDate.ToString() );
-                                        }
-                                        break;
-                                    case CIA_CLEARANCE_REQUIREMENT_NAME:
-                                    case MEGANS_LAW_CLEARANCE_REQUIREMENT_NAME:
-                                        if (IsDateMoreRecent(backgroundCheckDateAttribute, person, requirementDate))
-                                        {
-                                            AddPersonAttribute( backgroundCheckDateAttribute, person, requirementDate.ToString() );
-                                            AddPersonAttribute( backgroundCheckResultAttribute, person, GetBackgroundStatus(requirementStatus) );
-                                            AddPersonAttribute(backgroundCheckResultAttribute, person, "True");
-                                        }
-                                        break;
-                                    case F1_CONFIDENTIALITY_STAREMENT_REQUIREMENT_NAME:
-                                        if (IsDateMoreRecent(f1ConfidentialityDateAttribute, person,
-                                            requirementDate))
-                                        {
-                                            AddPersonAttribute(f1ConfidentialityDateAttribute, person, requirementDate.ToString());
-                                        }
-                                        break;
-                                }
-
-                                if ( !newPeopleAttributes.ContainsKey( matchingPerson.PersonId ) )
-                                {
-                                    newPeopleAttributes.Add( matchingPerson.PersonId, person );
-                                }
-                                else
-                                {
-                                    newPeopleAttributes[matchingPerson.PersonId] = person;
-                                }
-                            }
-
-                            completed++;
                         }
+
+                        completed++;
 
                         if ( completed % percentage < 1 )
                         {
                             int percentComplete = completed / percentage;
-                            ReportProgress( percentComplete, string.Format( "{0:N0} records imported ({1}% complete).", completed, percentComplete ) );
+                            ReportProgress( percentComplete,
+                                string.Format( "{0:N0} records imported ({1}% complete).", completed, percentComplete ) );
                         }
                         else if ( completed % ReportingNumber < 1 )
                         {
@@ -171,29 +202,56 @@ namespace Excavator.F1
             ReportProgress( 100, string.Format( "Finished attribute value import: {0:N0} records imported.", completed ) );
         }
 
-        private static string GetNewStatus(string requirementStatus)
+        private static string GetNewStatus( string requirementStatus )
         {
-            if (requirementStatus == "Approved")
+            if ( requirementStatus == "Approved" )
             {
                 return "Completed";
             }
             return requirementStatus;
         }
 
-        private string GetBackgroundStatus(string requirementStatus)
+        private static string GetBackgroundStatus( string requirementStatus )
         {
-            if (requirementStatus == "Approved" || requirementStatus == "Completed")
+            if ( requirementStatus == "Approved" || requirementStatus == "Completed" )
             {
                 return "Pass";
             }
             return "Fail";
         }
 
-        private bool IsDateMoreRecent(AttributeCache dateAttribute, Person person, DateTime? date)
+        private static bool IsDateMoreRecent( AttributeCache dateAttribute, Person person, DateTime? date )
         {
-            return !person.Attributes.ContainsKey(dateAttribute.Key) ||
-                   (date != null && person.GetAttributeValue(dateAttribute.Key).AsDateTime() != null && person.GetAttributeValue( dateAttribute.Key ).AsDateTime() < date);
+            return person.GetAttributeValue( dateAttribute.Key ).AsDateTime() == null ||
+                   ( date != null && person.GetAttributeValue( dateAttribute.Key ).AsDateTime() != null && person.GetAttributeValue( dateAttribute.Key ).AsDateTime() < date );
         }
+
+        protected static void AddOrUpdatePersonAttribute( AttributeCache attribute, Person person, string value )
+        {
+            if ( attribute == null || person == null || string.IsNullOrWhiteSpace( value ) )
+            {
+                return;
+            }
+            if ( person.Attributes.ContainsKey( attribute.Key ) )
+            {
+                UpdatePersonAttribute( attribute, person, value );
+            }
+            else
+            {
+                AddPersonAttribute( attribute, person, value );
+            }
+        }
+
+        protected static void UpdatePersonAttribute( AttributeCache attribute, Person person, string value )
+        {
+            if ( attribute != null && !string.IsNullOrWhiteSpace( value ) )
+            {
+                person.AttributeValues[attribute.Key].Value = value;
+                person.SaveAttributeValues();
+            }
+        }
+
+
     }
 
     internal class RequirementColumnNames
@@ -203,5 +261,5 @@ namespace Excavator.F1
         public const string RequirementDate = "Requirement_Date";
         public const string RequirementStatusName = "Requirement_Status_Name";
     }
-    
+
 }
