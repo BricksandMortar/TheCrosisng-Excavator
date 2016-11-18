@@ -210,7 +210,6 @@ namespace Excavator.F1
                                 // reset so context doesn't bloat
                                 lookupContext = new RockContext();
                                 personService = new PersonService( lookupContext );
-                                attributeService = new AttributeService( lookupContext );
                                 newPeopleAttributes.Clear();
                                 ReportPartialProgress();
                             }
@@ -252,7 +251,7 @@ namespace Excavator.F1
 
                                 rockContext.AttributeValues.Add( existingValue );
                             }
-                            else
+                            else if (existingValue.Value != newAttributeValue.Value)
                             {
                                 existingValue.Value = newAttributeValue.Value;
                                 rockContext.Entry( existingValue ).State = EntityState.Modified;
