@@ -251,10 +251,10 @@ namespace Excavator.F1
             int recordStatusActiveId = recordStatuses.FirstOrDefault( r => r.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_ACTIVE ) ).Id;
             int recordStatusInactiveId = recordStatuses.FirstOrDefault( r => r.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE ) ).Id;
             int recordStatusPendingId = recordStatuses.FirstOrDefault( r => r.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_PENDING ) ).Id;
-            int connectionStatusReasonDeceasedId = recordStatusReasons.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_REASON_DECEASED ) ).Id;
-            int connectionStatusReasonNoActivityId = recordStatusReasons.Where( dv => dv.Value == "No Activity" ).Select( dv => dv.Id ).FirstOrDefault();
-            int connectionStatusReasonMovedId = recordStatusReasons.Where( dv => dv.Value == "Moved" ).Select( dv => dv.Id ).FirstOrDefault();
-            int connectionStatusReasonNoLongerAttendingId = recordStatusReasons.Where( dv => dv.Value == "No Longer Attending" ).Select( dv => dv.Id ).FirstOrDefault();
+            int recordStatusReasonDeceasedId = recordStatusReasons.FirstOrDefault( dv => dv.Guid == new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_REASON_DECEASED ) ).Id;
+            int recordStatusReasonNoActivityId = recordStatusReasons.Where( dv => dv.Value == "No Activity" ).Select( dv => dv.Id ).FirstOrDefault();
+            int recordStatusReasonMovedId = recordStatusReasons.Where( dv => dv.Value == "Moved" ).Select( dv => dv.Id ).FirstOrDefault();
+            int recordStatusReasonNoLongerAttendingId = recordStatusReasons.Where( dv => dv.Value == "No Longer Attending" ).Select( dv => dv.Id ).FirstOrDefault();
 
             var personalNoteTypeId = new NoteTypeService( lookupContext ).Get( new Guid( Rock.SystemGuid.NoteType.PERSON_TIMELINE_NOTE ) ).Id;
 
@@ -428,7 +428,7 @@ namespace Excavator.F1
                                     break;
                                 case "deceased":
                                     person.IsDeceased = true;
-                                    person.RecordStatusReasonValueId = connectionStatusReasonDeceasedId;
+                                    person.RecordStatusReasonValueId = recordStatusReasonDeceasedId;
                                     person.RecordStatusValueId = recordStatusInactiveId;
                                     person.ConnectionStatusValueId = attendeeConnectionStatusId;
                                     break;
@@ -436,7 +436,7 @@ namespace Excavator.F1
                                 case "visitor":
                                     person.RecordStatusValueId = recordStatusInactiveId;
                                     person.ConnectionStatusValueId = visitorConnectionStatusId;
-                                    person.RecordStatusReasonValueId = connectionStatusReasonNoActivityId;
+                                    person.RecordStatusReasonValueId = recordStatusReasonNoActivityId;
                                     break;
                                 case "first time visitor":
                                     person.RecordStatusValueId = recordStatusActiveId;
@@ -445,7 +445,7 @@ namespace Excavator.F1
                                 case "inactive partner":
                                     person.ConnectionStatusValueId = attendeeConnectionStatusId;
                                     person.RecordStatusValueId = recordStatusInactiveId;
-                                    person.RecordStatusReasonValueId = connectionStatusReasonNoLongerAttendingId;
+                                    person.RecordStatusReasonValueId = recordStatusReasonNoLongerAttendingId;
                                     break;
                                 case "inactive member":
                                     //All inactive except for dummy records
@@ -456,13 +456,13 @@ namespace Excavator.F1
                                     switch (string.IsNullOrEmpty( subMemberStatus ) ? "" : subMemberStatus.ToLower())
                                     {
                                         case "moved out of area":
-                                            person.RecordStatusReasonValueId = connectionStatusReasonMovedId;
+                                            person.RecordStatusReasonValueId = recordStatusReasonMovedId;
                                             break;
                                         case "no activity in past 3 years":
-                                            person.RecordStatusReasonValueId = connectionStatusReasonNoActivityId;
+                                            person.RecordStatusReasonValueId = recordStatusReasonNoActivityId;
                                             break;
                                         case "attends another church":
-                                            person.RecordStatusReasonValueId = connectionStatusReasonNoLongerAttendingId;
+                                            person.RecordStatusReasonValueId = recordStatusReasonNoLongerAttendingId;
                                             break;
                                         case "dummy record":
                                             person.RecordStatusValueId = recordStatusActiveId;
@@ -476,7 +476,7 @@ namespace Excavator.F1
                                             person.RecordStatusReasonValueId = connectionStatusReasonNoLongerAttendingId;
                                             break;
                                         default:
-                                            person.RecordStatusReasonValueId = connectionStatusReasonNoLongerAttendingId;
+                                            person.RecordStatusReasonValueId = recordStatusReasonNoLongerAttendingId;
                                             break;
                                     }
                                     break;
