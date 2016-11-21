@@ -255,6 +255,7 @@ namespace Excavator.F1
             int recordStatusReasonNoActivityId = recordStatusReasons.Where( dv => dv.Value == "No Activity" ).Select( dv => dv.Id ).FirstOrDefault();
             int recordStatusReasonMovedId = recordStatusReasons.Where( dv => dv.Value == "Moved" ).Select( dv => dv.Id ).FirstOrDefault();
             int recordStatusReasonNoLongerAttendingId = recordStatusReasons.Where( dv => dv.Value == "No Longer Attending" ).Select( dv => dv.Id ).FirstOrDefault();
+            int recordStatusReasonOutOfState = recordStatusReasons.Where(dv => dv.Value == "Out of State").Select(dv => dv.Id).FirstOrDefault();
 
             var personalNoteTypeId = new NoteTypeService( lookupContext ).Get( new Guid( Rock.SystemGuid.NoteType.PERSON_TIMELINE_NOTE ) ).Id;
 
@@ -473,7 +474,7 @@ namespace Excavator.F1
                                             break;
                                         case "out of state address":
                                             person.ConnectionStatusValueId = visitorConnectionStatusId;
-                                            person.RecordStatusReasonValueId = connectionStatusReasonNoLongerAttendingId;
+                                            person.RecordStatusReasonValueId = recordStatusReasonOutOfState;
                                             break;
                                         default:
                                             person.RecordStatusReasonValueId = recordStatusReasonNoLongerAttendingId;
