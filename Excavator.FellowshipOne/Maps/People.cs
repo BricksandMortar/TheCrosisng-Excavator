@@ -467,10 +467,10 @@ namespace Excavator.F1
                                             break;
                                         case "dummy record":
                                             person.RecordStatusValueId = recordStatusActiveId;
+                                            person.ConnectionStatusValueId = dummyRecordConnectionStatusId;
                                             break;
                                         case "parent of youth,  not attendee":
                                             person.ConnectionStatusValueId = nonAttendingConnectionStatusId;
-                                            person.RecordStatusReasonValueId = connectionStatusReasonNoLongerAttendingId;
                                             break;
                                         case "out of state address":
                                             person.ConnectionStatusValueId = visitorConnectionStatusId;
