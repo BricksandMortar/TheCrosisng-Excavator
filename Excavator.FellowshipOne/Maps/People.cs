@@ -293,6 +293,7 @@ namespace Excavator.F1
             var positionAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "Position", StringComparison.InvariantCultureIgnoreCase ) ) );
             var schoolAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "School", StringComparison.InvariantCultureIgnoreCase ) ) );
             var memberEnvAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "MemberEnv", StringComparison.InvariantCultureIgnoreCase ) ) );
+            var barCodeAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "BarCode", StringComparison.InvariantCultureIgnoreCase ) ) );
 
             var familyList = new List<Group>();
             var visitorList = new List<Group>();
@@ -556,6 +557,12 @@ namespace Excavator.F1
                         if ( !string.IsNullOrWhiteSpace( envCode ) )
                         {
                             AddPersonAttribute( memberEnvAttribute, person, envCode );
+                        }
+
+                        string barCode = row["Bar_Code"] as string;
+                        if ( !string.IsNullOrWhiteSpace( barCode ) )
+                        {
+                            AddPersonAttribute( barCodeAttribute, person, barCode );
                         }
 
                         var groupMember = new GroupMember();
