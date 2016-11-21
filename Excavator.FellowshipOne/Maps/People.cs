@@ -292,6 +292,7 @@ namespace Excavator.F1
             var employerAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "Employer", StringComparison.InvariantCultureIgnoreCase ) ) );
             var positionAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "Position", StringComparison.InvariantCultureIgnoreCase ) ) );
             var schoolAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "School", StringComparison.InvariantCultureIgnoreCase ) ) );
+            var memberEnvAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "MemberEnv", StringComparison.InvariantCultureIgnoreCase ) ) );
 
             var familyList = new List<Group>();
             var visitorList = new List<Group>();
@@ -549,6 +550,12 @@ namespace Excavator.F1
                         if ( checkinNote != null )
                         {
                             AddPersonAttribute( legalNoteAttribute, person, checkinNote );
+                        }
+
+                        string envCode = row["Member_Env_Code"] as string;
+                        if ( !string.IsNullOrWhiteSpace( envCode ) )
+                        {
+                            AddPersonAttribute( memberEnvAttribute, person, envCode );
                         }
 
                         var groupMember = new GroupMember();
