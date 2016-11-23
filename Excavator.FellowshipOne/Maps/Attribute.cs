@@ -181,6 +181,10 @@ namespace Excavator.F1
                                     {
                                         AddPersonAttribute( hireDateAttribute, person, startDate.Value.ToString( "o" ) );
                                     }
+                                    else if (attributeName.Contains( "Anniversary Date" ) && startDate.HasValue )
+                                    {
+                                        person.AnniversaryDate = startDate.Value;
+                                    }
 
                                     if ( !newPeopleAttributes.ContainsKey( matchingPerson.PersonId ) )
                                     {
