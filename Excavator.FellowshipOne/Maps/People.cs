@@ -283,6 +283,8 @@ namespace Excavator.F1
             // Look up additional Person attributes (existing)
             var personAttributes = new AttributeService( lookupContext ).GetByEntityTypeId( PersonEntityTypeId ).AsNoTracking().ToList();
 
+            var schoolDefinedType = new DefinedTypeService( new RockContext() ).Queryable().FirstOrDefault( dt => dt.Name == "School" );
+
             // F1 attributes: IndividualId, HouseholdId
             // Core attributes: PreviousChurch, Position, Employer, School
             var previousChurchAttribute = AttributeCache.Read( personAttributes.FirstOrDefault( a => a.Key.Equals( "PreviousChurch", StringComparison.InvariantCultureIgnoreCase ) ) );
@@ -530,7 +532,7 @@ namespace Excavator.F1
                         string school = row["School_Name"] as string;
                         if ( school != null )
                         {
-                            AddPersonAttribute( schoolAttribute, person, school );
+                            UpsertSchoolDefinedValue(schoolDefinedType, lookupContext, school, person, schoolAttribute);
                         }
 
                         DateTime? firstVisit = row["First_Record"] as DateTime?;
@@ -1085,5 +1087,23 @@ namespace Excavator.F1
             rockContext.UserLogins.Add( userLogin );
             rockContext.SaveChanges( DisableAuditing );
         }
+
+        protected void UpsertSchoolDefinedValue( DefinedType schoolDefinedType, RockContext lookupContext, string schoolName, Person person, AttributeCache schoolAttribute )
+        {
+            var definedValue = new DefinedValueService(lookupContext).GetByDefinedTypeGuid( schoolDefinedType.Guid );
+            var school = definedValue.FirstOrDefault(dv => dv.Value == schoolName);
+            if (school == null)
+            {
+                var newSchool = new DefinedValue();
+                newSchool.Value = schoolName;
+                newSchool.DefinedTypeId = schoolDefinedType.Id;
+                AddPersonAttribute(schoolAttribute, person, newSchool.Guid.ToString());
+            }
+            else
+            {
+                AddPersonAttribute(schoolAttribute, person, school.Guid.ToString());
+            }
+        }
     }
+
 }
