@@ -393,13 +393,14 @@ namespace Excavator.F1
                     var isFundActive = row["Fund_Is_active"] as bool?;
                     var statedValue = row["Stated_Value"] as decimal?;
                     var amount = row["Amount"] as decimal?;
+                    string fundType = row["FundType"] as string;
                     if ( fundName != null & amount != null )
                     {
                         int transactionAccountId;
                         var parentAccount = accountList.FirstOrDefault( a => a.Name.Equals( fundName ) && a.CampusId == null );
                         if ( parentAccount == null )
                         {
-                            parentAccount = AddAccount( lookupContext, fundName, fundGlAccount, null, null, isFundActive );
+                            parentAccount = AddAccount( lookupContext, fundName, fundGlAccount, null, null, isFundActive, fundType );
                             accountList.Add( parentAccount );
                         }
 
@@ -423,7 +424,7 @@ namespace Excavator.F1
                             if ( childAccount == null )
                             {
                                 // create a child account with a campusId if it was set
-                                childAccount = AddAccount( lookupContext, subFund, subFundGLAccount, campusFundId, parentAccount.Id, subFundIsActive );
+                                childAccount = AddAccount( lookupContext, subFund, subFundGLAccount, campusFundId, parentAccount.Id, subFundIsActive, fundType );
                                 accountList.Add( childAccount );
                             }
 
@@ -563,7 +564,7 @@ namespace Excavator.F1
                             var parentAccount = accountList.FirstOrDefault( a => a.Name.Equals( fundName ) && a.CampusId == null );
                             if ( parentAccount == null )
                             {
-                                parentAccount = AddAccount( lookupContext, fundName, string.Empty, null, null, null );
+                                parentAccount = AddAccount( lookupContext, fundName, string.Empty, null, null, null, null );
                                 accountList.Add( parentAccount );
                             }
 
@@ -586,7 +587,7 @@ namespace Excavator.F1
                                 if ( childAccount == null )
                                 {
                                     // create a child account with a campusId if it was set
-                                    childAccount = AddAccount( lookupContext, subFund, string.Empty, campusFundId, parentAccount.Id, null );
+                                    childAccount = AddAccount( lookupContext, subFund, string.Empty, campusFundId, parentAccount.Id, null, null );
                                     accountList.Add( childAccount );
                                 }
 
@@ -644,7 +645,7 @@ namespace Excavator.F1
         /// <param name="fundName">Name of the fund.</param>
         /// <param name="fundCampusId">The fund campus identifier.</param>
         /// <returns></returns>
-        private static FinancialAccount AddAccount( RockContext lookupContext, string fundName, string accountGL, int? fundCampusId, int? parentAccountId, bool? isActive )
+        private static FinancialAccount AddAccount( RockContext lookupContext, string fundName, string accountGL, int? fundCampusId, int? parentAccountId, bool? isActive, string fundType )
         {
             lookupContext = lookupContext ?? new RockContext();
 
@@ -652,7 +653,7 @@ namespace Excavator.F1
             account.Name = fundName;
             account.GlCode = accountGL;
             account.PublicName = fundName;
-            account.IsTaxDeductible = true;
+            account.IsTaxDeductible = string.IsNullOrEmpty(fundType) || fundType != "Receipt";
             account.IsActive = isActive ?? true;
             account.CampusId = fundCampusId ?? GetFundId(fundName);
             account.ParentAccountId = parentAccountId;
