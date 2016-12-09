@@ -397,7 +397,7 @@ namespace Excavator.F1
                     if ( fundName != null & amount != null )
                     {
                         int transactionAccountId;
-                        var parentAccount = accountList.FirstOrDefault( a => a.Name.Equals( fundName ) && a.CampusId == null );
+                        var parentAccount = accountList.FirstOrDefault( a => a.Name.Equals( fundName ) );
                         if ( parentAccount == null )
                         {
                             parentAccount = AddAccount( lookupContext, fundName, fundGlAccount, null, null, isFundActive, fundType );
@@ -419,6 +419,12 @@ namespace Excavator.F1
 
                             // add info to easily find/assign this fund in the view
                             subFund = subFund.Truncate(50);
+
+
+                            if (parentAccount == null)
+                            {
+                                parentAccount = accountList.FirstOrDefault(a => a.Name == fundName );
+                            }
 
                             var childAccount = accountList.FirstOrDefault( c => c.Name.Equals( subFund ) && c.ParentAccountId == parentAccount.Id );
                             if ( childAccount == null )
