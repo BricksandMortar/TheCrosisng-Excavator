@@ -14,7 +14,7 @@ namespace Excavator.F1
     {
         private const string APPLICATION_ON_FILE_REQUIREMENT_NAME = "Application on File";
         private const string DRIVING_RECORD_CLEARANCE_REQUIREMENT_NAME = "Driving Record Clearance";
-        private const string MEGANS_LAW_CLEARANCE_REQUIREMENT_NAME = "Meagan's Law Clearance";
+        private const string MEGANS_LAW_CLEARANCE_REQUIREMENT_NAME = "Megan's Law Clearance";
         private const string CIA_CLEARANCE_REQUIREMENT_NAME = "CIA Clearance";
         private const string F1_CONFIDENTIALITY_STAREMENT_REQUIREMENT_NAME = "F1 Confidentiality Statement";
         private const string COPY_OF_ID_ON_FILE_REQUIREMENT_NAME = "Copy of ID on file";
