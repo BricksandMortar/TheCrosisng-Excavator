@@ -17,6 +17,8 @@ namespace Excavator.F1
         private const string MEGANS_LAW_CLEARANCE_REQUIREMENT_NAME = "Meagan's Law Clearance";
         private const string CIA_CLEARANCE_REQUIREMENT_NAME = "CIA Clearance";
         private const string F1_CONFIDENTIALITY_STAREMENT_REQUIREMENT_NAME = "F1 Confidentiality Statement";
+        private const string COPY_OF_ID_ON_FILE_REQUIREMENT_NAME = "Copy of ID on file";
+        private const string COPY_OF_DL_ON_FILE_REQUIREMENT_NAME = "Copy of DL on File";
 
         private void MapRequirements( IQueryable<Row> tableData )
         {
@@ -159,6 +161,20 @@ namespace Excavator.F1
                                         requirementDate ) )
                                     {
                                         AddOrUpdatePersonAttribute( f1ConfidentialityDateAttribute, person,
+                                            requirementDate.ToString() );
+                                    }
+                                    break;
+                                case COPY_OF_DL_ON_FILE_REQUIREMENT_NAME:
+                                case COPY_OF_ID_ON_FILE_REQUIREMENT_NAME:
+                                    if ( !person.Attributes.ContainsKey( idDocumentDateAttribute.Key ) )
+                                    {
+                                        AddOrUpdatePersonAttribute( idDocumentDateAttribute, person,
+                                            requirementDate.ToString() );
+                                    }
+                                    else if ( IsDateMoreRecent( idDocumentDateAttribute, person,
+                                        requirementDate ) )
+                                    {
+                                        AddOrUpdatePersonAttribute( idDocumentDateAttribute, person,
                                             requirementDate.ToString() );
                                     }
                                     break;
