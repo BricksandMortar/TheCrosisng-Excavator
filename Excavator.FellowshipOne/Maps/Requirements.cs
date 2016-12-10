@@ -141,7 +141,7 @@ namespace Excavator.F1
                                             GetBackgroundStatus( requirementStatus ) );
                                         AddOrUpdatePersonAttribute( backgroundCheckDateAttribute, person,
                                             requirementDate.ToString() );
-                                        AddOrUpdatePersonAttribute( backgroundCheckResultAttribute, person, "True" );
+                                        AddOrUpdatePersonAttribute( backgroundCheckedAttribute, person, "True" );
                                     }
                                     else if ( IsDateMoreRecent( backgroundCheckDateAttribute, person, requirementDate ) )
                                     {
