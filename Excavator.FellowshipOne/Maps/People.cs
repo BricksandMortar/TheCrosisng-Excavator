@@ -489,7 +489,7 @@ namespace Excavator.F1
                                     break;
 
                             }
-                            AddCampus( familyGroup, subMemberStatus == "TCE" );
+                            AddCampus( familyGroup, subMemberStatus.ToLower().Equals("tce") );
                         }
                         
                         string statusComment = row["Status_Comment"] as string;
@@ -636,10 +636,7 @@ namespace Excavator.F1
 
         private void AddCampus(Group family, bool tce)
         {
-            if (!family.CampusId.HasValue)
-            {
-                family.CampusId = tce ? _tceCampus.Id : _primaryCampus.Id;
-            }
+            family.CampusId = tce ? _tceCampus.Id : _primaryCampus.Id;
         }
         
 
