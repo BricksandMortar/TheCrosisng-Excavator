@@ -567,7 +567,7 @@ namespace Excavator.F1
                         string subFund = row["Sub_Fund_Name"] as string;
                         if ( fundName != null )
                         {
-                            var parentAccount = accountList.FirstOrDefault( a => a.Name.Equals( fundName ) && a.CampusId == null );
+                            var parentAccount = accountList.FirstOrDefault( a => a.Name.Equals( fundName ) );
                             if ( parentAccount == null )
                             {
                                 parentAccount = AddAccount( lookupContext, fundName, string.Empty, null, null, null, null );
