@@ -476,6 +476,7 @@ namespace Excavator.F1
                                             break;
                                         case "parent of youth,  not attendee":
                                             person.ConnectionStatusValueId = nonAttendingConnectionStatusId;
+                                            person.RecordStatusValueId = recordStatusActiveId;
                                             break;
                                         case "out of state address":
                                             person.ConnectionStatusValueId = visitorConnectionStatusId;
