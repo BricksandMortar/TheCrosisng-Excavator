@@ -183,7 +183,7 @@ namespace Excavator.F1
                                     }
                                     else if (attributeName.Contains( "Anniversary Date" ) && startDate.HasValue )
                                     {
-                                        person.AnniversaryDate = startDate.Value;
+                                        person.AnniversaryDate = startDate;
                                     }
 
                                     if ( !newPeopleAttributes.ContainsKey( matchingPerson.PersonId ) )
@@ -209,6 +209,7 @@ namespace Excavator.F1
                                 if ( newPeopleAttributes.Any() )
                                 {
                                     SaveAttributes( newPeopleAttributes );
+                                    SavePersonAnniversary(newPeopleAttributes);
                                 }
 
                                 // reset so context doesn't bloat
@@ -269,6 +270,39 @@ namespace Excavator.F1
             } );
         }
 
+        private static void SavePersonAnniversary( Dictionary<int, Person> updatedPersonList )
+        {
+            var rockContext = new RockContext();
+            rockContext.WrapTransaction( () =>
+            {
+                rockContext.Configuration.AutoDetectChangesEnabled = false;
+
+
+                if ( updatedPersonList.Any() )
+                {
+                    foreach ( var person in updatedPersonList.Values )
+                    {
+                        // don't call LoadAttributes, it only rewrites existing cache objects
+                        // person.LoadAttributes( rockContext );
+
+                            
+                            var existingPerson = rockContext.People.FirstOrDefault( p => p.Id == person.Id );
+                        var newValue = person.AnniversaryDate;
+
+                            // set the new value and add it to the database
+                            if ( existingPerson.AnniversaryDate != newValue )
+                            {
+                            existingPerson.AnniversaryDate = newValue;
+                                rockContext.Entry( existingPerson ).State = EntityState.Modified;
+                            }
+                    }
+                }
+
+                rockContext.ChangeTracker.DetectChanges();
+                rockContext.SaveChanges( DisableAuditing );
+            } );
+        }
+
     }
-    
+
 }
