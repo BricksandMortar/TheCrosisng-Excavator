@@ -299,6 +299,7 @@ namespace Excavator.F1
 
             var familyList = new List<Group>();
             var visitorList = new List<Group>();
+            var newSchools = new List<DefinedValue>();
             var previousNamesList = new Dictionary<Guid, string>();
             _primaryCampus = campusService.Queryable().FirstOrDefault();
             _tceCampus = campusService.Queryable().FirstOrDefault(c => c.Name == "TCE Campus");
@@ -532,7 +533,7 @@ namespace Excavator.F1
                         string school = row["School_Name"] as string;
                         if ( school != null )
                         {
-                            UpsertSchoolDefinedValue(schoolDefinedType, lookupContext, school, person, schoolAttribute);
+                            UpsertSchoolDefinedValue(schoolDefinedType, lookupContext, school, person, schoolAttribute, newSchools);
                         }
 
                         DateTime? firstVisit = row["First_Record"] as DateTime?;
@@ -610,8 +611,10 @@ namespace Excavator.F1
                     }
                     else if ( completed % ReportingNumber < 1 )
                     {
+                        SaveSchools( newSchools);
                         SavePeople( familyList, visitorList, previousNamesList, ownerRole, childRoleId, inviteeRoleId, invitedByRoleId, canCheckInRoleId, allowCheckInByRoleId, noteList );
 
+                        newSchools.Clear();
                         noteList.Clear();
                         familyList.Clear();
                         visitorList.Clear();
@@ -1035,6 +1038,18 @@ namespace Excavator.F1
             } );
         }
 
+        private void SaveSchools( List<DefinedValue> newschools )
+        {
+            var rockContext = new RockContext();
+            rockContext.WrapTransaction( () =>
+            {
+                rockContext.Configuration.AutoDetectChangesEnabled = false;
+                rockContext.DefinedValues.AddRange( newschools );
+                rockContext.ChangeTracker.DetectChanges();
+                rockContext.SaveChanges( DisableAuditing );
+            } );
+        }
+
         /// <summary>
         /// Adds the person attribute.
         /// </summary>
@@ -1088,7 +1103,7 @@ namespace Excavator.F1
             rockContext.SaveChanges( DisableAuditing );
         }
 
-        protected void UpsertSchoolDefinedValue( DefinedType schoolDefinedType, RockContext lookupContext, string schoolName, Person person, AttributeCache schoolAttribute )
+        protected void UpsertSchoolDefinedValue( DefinedType schoolDefinedType, RockContext lookupContext, string schoolName, Person person, AttributeCache schoolAttribute, List<DefinedValue> newSchools )
         {
             var definedValue = new DefinedValueService(lookupContext).GetByDefinedTypeGuid( schoolDefinedType.Guid );
             var school = definedValue.FirstOrDefault(dv => dv.Value == schoolName);
@@ -1097,6 +1112,7 @@ namespace Excavator.F1
                 var newSchool = new DefinedValue();
                 newSchool.Value = schoolName;
                 newSchool.DefinedTypeId = schoolDefinedType.Id;
+                newSchools.Add(newSchool);
                 AddPersonAttribute(schoolAttribute, person, newSchool.Guid.ToString());
             }
             else
