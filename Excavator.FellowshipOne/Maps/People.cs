@@ -385,7 +385,7 @@ namespace Excavator.F1
                         string familyRole = row["Household_Position"] as string;
                         if ( familyRole != null )
                         {
-                            familyRole = familyRole.ToString().ToLower();
+                            familyRole = familyRole.ToLower();
                             if ( familyRole == "visitor" )
                             {
                                 familyRoleId = FamilyRole.Visitor;
@@ -399,7 +399,7 @@ namespace Excavator.F1
                         string memberStatus = row["Status_Name"] as string;
                         string subMemberStatus = row["SubStatus_Name"] as string;
 
-                        if ( memberStatus != null )
+                        if ( memberStatus != null)
                         {
                             memberStatus = memberStatus.ToLower();
 
@@ -420,7 +420,7 @@ namespace Excavator.F1
                                             personNote.CreatedByPersonAliasId = ImportPersonAliasId;
                                             personNote.CreatedDateTime = ImportDateTime;
                                             personNote.Text = "Attended " + subMemberStatus + " event";
-                                            personNote.Caption = string.Format( "General Note" );
+                                            personNote.Caption = "General Note";
                                             noteList.Add( personNote );
                                         }
                                     break;
@@ -489,7 +489,7 @@ namespace Excavator.F1
                                     break;
 
                             }
-                            AddCampus( familyGroup, subMemberStatus.ToLower().Equals("tce") );
+                            AddCampus( familyGroup, !string.IsNullOrWhiteSpace(subMemberStatus) && subMemberStatus.ToLower().Trim(' ').Equals("tce") );
                         }
                         
                         string statusComment = row["Status_Comment"] as string;
@@ -588,7 +588,7 @@ namespace Excavator.F1
                             visitorGroup.ForeignKey = householdId.ToString();
                             visitorGroup.ForeignId = householdId;
                             visitorGroup.Name = person.LastName + " Family";
-                            visitorGroup.CampusId = _primaryCampus.Id;
+                            AddCampus(visitorGroup, !string.IsNullOrWhiteSpace(subMemberStatus) && subMemberStatus.ToLower().Trim( ' ' ).Equals( "tce" ) );
                             familyList.Add( visitorGroup );
                             completed += visitorGroup.Members.Count;
 
@@ -1103,20 +1103,23 @@ namespace Excavator.F1
 
         protected void UpsertSchoolDefinedValue( DefinedType schoolDefinedType, RockContext lookupContext, string schoolName, Person person, AttributeCache schoolAttribute, List<DefinedValue> newSchools )
         {
-            var definedValue = new DefinedValueService(lookupContext).GetByDefinedTypeGuid( schoolDefinedType.Guid );
-            var school = definedValue.FirstOrDefault(dv => dv.Value == schoolName);
+            var school = newSchools.Find(dv => dv.Value == schoolName);
             if (school == null)
             {
-                var newSchool = new DefinedValue();
-                newSchool.Value = schoolName;
-                newSchool.DefinedTypeId = schoolDefinedType.Id;
-                newSchools.Add(newSchool);
-                AddPersonAttribute(schoolAttribute, person, newSchool.Guid.ToString());
+                var definedValue = new DefinedValueService( lookupContext ).GetByDefinedTypeGuid( schoolDefinedType.Guid );
+                school = definedValue.FirstOrDefault( dv => dv.Value == schoolName );
+                if ( school == null )
+                {
+                    school = new DefinedValue
+                    {
+                        Value = schoolName,
+                        DefinedTypeId = schoolDefinedType.Id
+                    };
+                    newSchools.Add( school );
+                }
             }
-            else
-            {
-                AddPersonAttribute(schoolAttribute, person, school.Guid.ToString());
-            }
+            AddPersonAttribute( schoolAttribute, person, school.Guid.ToString() );
+
         }
     }
 

@@ -667,7 +667,7 @@ namespace Excavator.F1
             account.GlCode = accountGL;
             account.PublicName = fundName;
             account.IsTaxDeductible = string.IsNullOrEmpty(fundType) || fundType != "Receipt";
-            account.IsActive = isActive ?? true;
+            account.IsActive = isActive ?? false;
             account.CampusId = fundCampusId ?? GetFundId(fundName);
             account.ParentAccountId = parentAccountId;
             account.CreatedByPersonAliasId = ImportPersonAliasId;
