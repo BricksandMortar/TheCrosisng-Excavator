@@ -311,7 +311,13 @@ namespace Excavator.F1
             int percentage = ( totalRows - 1 ) / 100 + 1;
             ReportProgress( 0, string.Format( "Verifying person import ({0:N0} found, {1:N0} already exist).", totalRows, ImportedPeople.Count ) );
 
-            foreach ( var groupedRows in tableData.GroupBy<Row, int?>( r => r["Household_ID"] as int? ) )
+            foreach (
+                var groupedRows in
+                tableData.GroupBy<Row, int?>(r => r["Household_ID"] as int?)
+                         .Select(
+                             g =>
+                                 g.OrderBy(r => (string) r["Household_Position"] == "Head")
+                                     .ThenBy(r => (string) r["Household_Position"] == "Spouse")))
             {
                 var familyGroup = new Group();
 
@@ -489,7 +495,7 @@ namespace Excavator.F1
                                     break;
 
                             }
-                            AddCampus( familyGroup, !string.IsNullOrWhiteSpace(subMemberStatus) && subMemberStatus.ToLower().Trim(' ').Equals("tce") );
+                            AddCampus( familyGroup, !string.IsNullOrEmpty(subMemberStatus) && subMemberStatus.Equals("TCE") );
                         }
                         
                         string statusComment = row["Status_Comment"] as string;
@@ -588,7 +594,7 @@ namespace Excavator.F1
                             visitorGroup.ForeignKey = householdId.ToString();
                             visitorGroup.ForeignId = householdId;
                             visitorGroup.Name = person.LastName + " Family";
-                            AddCampus(visitorGroup, !string.IsNullOrWhiteSpace(subMemberStatus) && subMemberStatus.ToLower().Trim( ' ' ).Equals( "tce" ) );
+                            AddCampus(visitorGroup, !string.IsNullOrEmpty( subMemberStatus ) && subMemberStatus.Equals( "TCE" ) );
                             familyList.Add( visitorGroup );
                             completed += visitorGroup.Members.Count;
 
@@ -636,7 +642,10 @@ namespace Excavator.F1
 
         private void AddCampus(Group family, bool tce)
         {
-            family.CampusId = tce ? _tceCampus.Id : _primaryCampus.Id;
+            if (!family.CampusId.HasValue)
+            {
+                family.CampusId = tce ? _tceCampus.Id : _primaryCampus.Id;
+            }
         }
         
 
