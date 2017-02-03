@@ -223,15 +223,16 @@ namespace Excavator.F1
         private void MapContribution( IQueryable<Row> tableData, List<string> selectedColumns = null )
         {
             var lookupContext = new RockContext();
-            int transactionEntityTypeId = EntityTypeCache.Read( "Rock.Model.FinancialTransaction" ).Id;
-            var transactionTypeContributionId = DefinedValueCache.Read( new Guid( Rock.SystemGuid.DefinedValue.TRANSACTION_TYPE_CONTRIBUTION ), lookupContext ).Id;
+//            int transactionEntityTypeId = EntityTypeCache.Read( "Rock.Model.FinancialTransaction" ).Id;
+            int transactionTypeContributionId = DefinedValueCache.Read( new Guid( Rock.SystemGuid.DefinedValue.TRANSACTION_TYPE_CONTRIBUTION ), lookupContext ).Id;
 
             var currencyTypes = DefinedTypeCache.Read( new Guid( Rock.SystemGuid.DefinedType.FINANCIAL_CURRENCY_TYPE ) );
+            // ReSharper disable once InconsistentNaming
             int currencyTypeACH = currencyTypes.DefinedValues.FirstOrDefault( dv => dv.Guid.Equals( new Guid( Rock.SystemGuid.DefinedValue.CURRENCY_TYPE_ACH ) ) ).Id;
             int currencyTypeCash = currencyTypes.DefinedValues.FirstOrDefault( dv => dv.Guid.Equals( new Guid( Rock.SystemGuid.DefinedValue.CURRENCY_TYPE_CASH ) ) ).Id;
             int currencyTypeCheck = currencyTypes.DefinedValues.FirstOrDefault( dv => dv.Guid.Equals( new Guid( Rock.SystemGuid.DefinedValue.CURRENCY_TYPE_CHECK ) ) ).Id;
             int currencyTypeCreditCard = currencyTypes.DefinedValues.FirstOrDefault( dv => dv.Guid.Equals( new Guid( Rock.SystemGuid.DefinedValue.CURRENCY_TYPE_CREDIT_CARD ) ) ).Id;
-            int? currencyTypeNonCash = currencyTypes.DefinedValues.Where( dv => dv.Value.Equals( "Non-Cash" ) ).Select( dv => (int?)dv.Id ).FirstOrDefault();
+            var currencyTypeNonCash = currencyTypes.DefinedValues.Where( dv => dv.Value.Equals( "Non-Cash" ) ).Select( dv => (int?)dv.Id ).FirstOrDefault();
             if ( currencyTypeNonCash == null )
             {
                 var newTenderNonCash = new DefinedValue();
@@ -263,7 +264,8 @@ namespace Excavator.F1
             // Get all imported contributions
             var importedContributions = new FinancialTransactionService( lookupContext ).Queryable().AsNoTracking()
                .Where( c => c.ForeignId != null )
-               .ToDictionary( t => (int)t.ForeignId, t => (int?)t.Id );
+               // ReSharper disable once PossibleInvalidOperationException
+               .ToDictionary( t => t.ForeignId.Value, t => t.Id );
 
             // List for batching new contributions
             var newTransactions = new List<FinancialTransaction>();
@@ -271,82 +273,85 @@ namespace Excavator.F1
             int completed = 0;
             int totalRows = tableData.Count();
             int percentage = ( totalRows - 1 ) / 100 + 1;
-            ReportProgress( 0, string.Format( "Verifying contribution import ({0:N0} found, {1:N0} already exist).", totalRows, importedContributions.Count ) );
+            ReportProgress( 0, $"Verifying contribution import ({totalRows:N0} found, {importedContributions.Count:N0} already exist).");
             foreach ( var row in tableData.Where( r => r != null ) )
             {
-                int? individualId = row["Individual_ID"] as int?;
-                int? householdId = row["Household_ID"] as int?;
-                int? contributionId = row["ContributionID"] as int?;
+                var individualId = row["Individual_ID"] as int?;
+                var householdId = row["Household_ID"] as int?;
+                var contributionId = row["ContributionID"] as int?;
 
-                if ( contributionId != null && !importedContributions.ContainsKey( (int)contributionId ) )
+                if (contributionId == null || importedContributions.ContainsKey(contributionId.Value) || newTransactions.Any( nt => nt.ForeignId == contributionId.Value))
                 {
-                    var transaction = new FinancialTransaction();
-                    transaction.CreatedByPersonAliasId = ImportPersonAliasId;
-                    transaction.ModifiedByPersonAliasId = ImportPersonAliasId;
-                    transaction.TransactionTypeValueId = transactionTypeContributionId;
-                    transaction.ForeignKey = contributionId.ToString();
-                    transaction.ForeignId = contributionId;
+                    continue;
+                }
 
-                    int? giverAliasId = null;
-                    var personKeys = GetPersonKeys( individualId, householdId );
-                    if ( personKeys != null && personKeys.PersonAliasId > 0 )
+                var transaction = new FinancialTransaction
+                {
+                    CreatedByPersonAliasId = ImportPersonAliasId,
+                    ModifiedByPersonAliasId = ImportPersonAliasId,
+                    TransactionTypeValueId = transactionTypeContributionId,
+                    ForeignKey = contributionId.ToString(),
+                    ForeignId = contributionId
+                };
+
+                int? giverAliasId = null;
+                var personKeys = GetPersonKeys( individualId, householdId );
+                if ( personKeys != null && personKeys.PersonAliasId > 0 )
+                {
+                    giverAliasId = personKeys.PersonAliasId;
+                    transaction.CreatedByPersonAliasId = giverAliasId;
+                    transaction.AuthorizedPersonAliasId = giverAliasId;
+                    transaction.ProcessedByPersonAliasId = giverAliasId;
+                }
+
+                string summary = row["Memo"] as string;
+                if ( summary != null )
+                {
+                    transaction.Summary = summary;
+                }
+
+                var batchId = row["BatchID"] as int?;
+                if ( batchId != null && ImportedBatches.Any( b => b.Key.Equals( batchId ) ) )
+                {
+                    transaction.BatchId = ImportedBatches.FirstOrDefault( b => b.Key.Equals( batchId ) ).Value;
+                }
+                else
+                {
+                    // use the default batch for any non-matching transactions
+                    transaction.BatchId = defaultBatchId;
+                }
+
+                var receivedDate = row["Received_Date"] as DateTime?;
+                if ( receivedDate != null )
+                {
+                    transaction.TransactionDateTime = receivedDate;
+                    transaction.CreatedDateTime = receivedDate;
+                    transaction.ModifiedDateTime = ImportDateTime;
+                }
+
+                string cardType = row["Card_Type"] as string;
+                string cardLastFour = row["Last_Four"] as string;
+                string contributionType = row["Contribution_Type_Name"].ToStringSafe().ToLower();
+                if ( contributionType != null )
+                {
+                    // set default source to onsite, exceptions listed below
+                    transaction.SourceTypeValueId = sourceTypeOnsite;
+
+                    int? paymentCurrencyTypeId = null, creditCardTypeId = null;
+
+                    switch (contributionType)
                     {
-                        giverAliasId = personKeys.PersonAliasId;
-                        transaction.CreatedByPersonAliasId = giverAliasId;
-                        transaction.AuthorizedPersonAliasId = giverAliasId;
-                        transaction.ProcessedByPersonAliasId = giverAliasId;
-                    }
-
-                    string summary = row["Memo"] as string;
-                    if ( summary != null )
-                    {
-                        transaction.Summary = summary;
-                    }
-
-                    int? batchId = row["BatchID"] as int?;
-                    if ( batchId != null && ImportedBatches.Any( b => b.Key.Equals( batchId ) ) )
-                    {
-                        transaction.BatchId = ImportedBatches.FirstOrDefault( b => b.Key.Equals( batchId ) ).Value;
-                    }
-                    else
-                    {
-                        // use the default batch for any non-matching transactions
-                        transaction.BatchId = defaultBatchId;
-                    }
-
-                    DateTime? receivedDate = row["Received_Date"] as DateTime?;
-                    if ( receivedDate != null )
-                    {
-                        transaction.TransactionDateTime = receivedDate;
-                        transaction.CreatedDateTime = receivedDate;
-                        transaction.ModifiedDateTime = ImportDateTime;
-                    }
-
-                    string cardType = row["Card_Type"] as string;
-                    string cardLastFour = row["Last_Four"] as string;
-                    string contributionType = row["Contribution_Type_Name"].ToStringSafe().ToLower();
-                    if ( contributionType != null )
-                    {
-                        // set default source to onsite, exceptions listed below
-                        transaction.SourceTypeValueId = sourceTypeOnsite;
-
-                        int? paymentCurrencyTypeId = null, creditCardTypeId = null;
-
-                        if ( contributionType == "cash" )
-                        {
+                        case "cash":
                             paymentCurrencyTypeId = currencyTypeCash;
-                        }
-                        else if ( contributionType == "check" )
-                        {
+                            break;
+                        case "check":
                             paymentCurrencyTypeId = currencyTypeCheck;
-                        }
-                        else if ( contributionType == "ach" )
-                        {
+                            break;
+                        case "ach":
                             paymentCurrencyTypeId = currencyTypeACH;
                             transaction.SourceTypeValueId = sourceTypeWebsite;
-                        }
-                        else if ( contributionType == "credit card" )
-                        {
+                            break;
+                        case "credit card":
                             paymentCurrencyTypeId = currencyTypeCreditCard;
                             transaction.SourceTypeValueId = sourceTypeWebsite;
 
@@ -354,129 +359,147 @@ namespace Excavator.F1
                             {
                                 creditCardTypeId = creditCardTypes.Where( t => t.Value.Equals( cardType ) ).Select( t => (int?)t.Id ).FirstOrDefault();
                             }
-                        }
-                        else
-                        {
+                            break;
+                        default:
                             paymentCurrencyTypeId = currencyTypeNonCash;
-                        }
-
-                        var paymentDetail = new FinancialPaymentDetail();
-                        paymentDetail.CreatedDateTime = receivedDate;
-                        paymentDetail.CreatedByPersonAliasId = giverAliasId;
-                        paymentDetail.ModifiedDateTime = ImportDateTime;
-                        paymentDetail.ModifiedByPersonAliasId = giverAliasId;
-                        paymentDetail.CurrencyTypeValueId = paymentCurrencyTypeId;
-                        paymentDetail.CreditCardTypeValueId = creditCardTypeId;
-                        paymentDetail.AccountNumberMasked = cardLastFour;
-                        paymentDetail.ForeignKey = contributionId.ToString();
-                        paymentDetail.ForeignId = contributionId;
-
-                        transaction.FinancialPaymentDetail = paymentDetail;
+                            break;
                     }
 
-                    string checkNumber = row["Check_Number"] as string;
-                    // if the check number is valid, put it in the transaction code
-                    if ( checkNumber.AsType<int?>() != null )
+                    var paymentDetail = new FinancialPaymentDetail
                     {
-                        transaction.TransactionCode = checkNumber;
-                    }
-                    // check for SecureGive kiosk transactions
-                    else if ( !string.IsNullOrEmpty( checkNumber ) && checkNumber.StartsWith( "SG" ) )
+                        CreatedDateTime = receivedDate,
+                        CreatedByPersonAliasId = giverAliasId,
+                        ModifiedDateTime = ImportDateTime,
+                        ModifiedByPersonAliasId = giverAliasId,
+                        CurrencyTypeValueId = paymentCurrencyTypeId,
+                        CreditCardTypeValueId = creditCardTypeId,
+                        AccountNumberMasked = cardLastFour,
+                        ForeignKey = contributionId.ToString(),
+                        ForeignId = contributionId
+                    };
+
+                    transaction.FinancialPaymentDetail = paymentDetail;
+                }
+
+                string checkNumber = row["Check_Number"] as string;
+                // if the check number is valid, put it in the transaction code
+                if ( checkNumber.AsIntegerOrNull() != null )
+                {
+                    transaction.TransactionCode = checkNumber;
+                }
+                // check for SecureGive kiosk transactions
+                else if ( !string.IsNullOrEmpty( checkNumber ) && checkNumber.StartsWith( "SG" ) )
+                {
+                    transaction.SourceTypeValueId = sourceTypeKiosk;
+                }
+
+                string fundName = row["Fund_Name"] as string;
+                string subFund = row["Sub_Fund_Name"] as string;
+                string fundGlAccount = row["Fund_GL_Account"] as string;
+                // ReSharper disable once InconsistentNaming
+                string subFundGLAccount = row["Sub_Fund_GL_Account"] as string;
+                var isFundActive = row["Fund_Is_active"] as bool?;
+                var subFundIsActive = row["Sub_Fund_Is_active"] as bool?;
+                var statedValue = row["Stated_Value"] as decimal?;
+                var amount = row["Amount"] as decimal?;
+                string fundType = row["FundType"] as string;
+
+                // is active if subfund and fund are active or if fund is active and it's not a subfund
+                bool isActive = isFundActive.Value && ((subFundIsActive.HasValue && subFundIsActive.Value) || (!subFundIsActive.HasValue && string.IsNullOrWhiteSpace(subFund)));
+
+                if ( fundName != null & amount != null )
+                {
+                    int transactionAccountId;
+                    var parentAccount = accountList.FirstOrDefault( a => a.Name.Equals( fundName ) );
+                    if ( parentAccount == null )
                     {
-                        transaction.SourceTypeValueId = sourceTypeKiosk;
-                    }
-
-                    string fundName = row["Fund_Name"] as string;
-                    string subFund = row["Sub_Fund_Name"] as string;
-                    string fundGlAccount = row["Fund_GL_Account"] as string;
-                    string subFundGLAccount = row["Sub_Fund_GL_Account"] as string;
-                    var isFundActive = row["Fund_Is_active"] as bool?;
-                    var statedValue = row["Stated_Value"] as decimal?;
-                    var amount = row["Amount"] as decimal?;
-                    string fundType = row["FundType"] as string;
-                    if ( fundName != null & amount != null )
-                    {
-                        int transactionAccountId;
-                        var parentAccount = accountList.FirstOrDefault( a => a.Name.Equals( fundName ) );
-                        if ( parentAccount == null )
-                        {
-                            parentAccount = AddAccount( lookupContext, fundName, fundGlAccount, null, null, isFundActive, fundType );
-                            accountList.Add( parentAccount );
-                        }
-
-                        if ( subFund != null )
-                        {
-                            var subFundIsActive = row["Sub_Fund_Is_active"] as bool?;
-                            int? campusFundId = null;
-                            // assign a campus if the subfund is a campus fund
-                            var campusFund = CampusList.FirstOrDefault( c => subFund.StartsWith( c.Name ) || subFund.StartsWith( c.ShortCode ) );
-                            if ( campusFund != null )
-                            {
-                                // use full campus name as the subfund
-                                subFund = campusFund.Name;
-                                campusFundId = campusFund.Id;
-                            }
-
-                            // add info to easily find/assign this fund in the view
-                            subFund = subFund.Truncate(50);
-
-
-                            if (parentAccount == null)
-                            {
-                                parentAccount = accountList.FirstOrDefault(a => a.Name == fundName );
-                            }
-
-                            var childAccount = accountList.FirstOrDefault( c => c.Name.Equals( subFund ) && c.ParentAccountId == parentAccount.Id );
-                            if ( childAccount == null )
-                            {
-                                // create a child account with a campusId if it was set
-                                childAccount = AddAccount( lookupContext, subFund, subFundGLAccount, campusFundId, parentAccount.Id, subFundIsActive, fundType );
-                                accountList.Add( childAccount );
-                            }
-
-                            transactionAccountId = childAccount.Id;
-                        }
-                        else
-                        {
-                            transactionAccountId = parentAccount.Id;
-                        }
-
-                        if ( amount == 0 && statedValue != null && statedValue != 0 )
-                        {
-                            amount = statedValue;
-                        }
-
-                        var transactionDetail = new FinancialTransactionDetail();
-                        transactionDetail.Amount = (decimal)amount;
-                        transactionDetail.CreatedDateTime = receivedDate;
-                        transactionDetail.AccountId = transactionAccountId;
-                        transaction.TransactionDetails.Add( transactionDetail );
-
-                        if ( amount < 0 )
-                        {
-                            transaction.RefundDetails = new FinancialTransactionRefund();
-                            transaction.RefundDetails.CreatedDateTime = receivedDate;
-                            transaction.RefundDetails.RefundReasonValueId = refundReasons.Where( dv => summary != null && dv.Value.Contains( summary ) )
-                                .Select( dv => (int?)dv.Id ).FirstOrDefault();
-                            transaction.RefundDetails.RefundReasonSummary = summary;
-                        }
+                        parentAccount = AddAccount( lookupContext, fundName, fundGlAccount, null, null, isActive, fundType );
+                        accountList.Add( parentAccount );
                     }
 
-                    newTransactions.Add( transaction );
-                    completed++;
-                    if ( completed % percentage < 1 )
+                    if ( subFund != null )
                     {
-                        int percentComplete = completed / percentage;
-                        ReportProgress( percentComplete, string.Format( "{0:N0} contributions imported ({1}% complete).", completed, percentComplete ) );
+                        int? campusFundId = null;
+                        // assign a campus if the subfund is a campus fund
+                        var campusFund = CampusList.FirstOrDefault( c => subFund.StartsWith( c.Name ) || subFund.StartsWith( c.ShortCode ) );
+                        if ( campusFund != null )
+                        {
+                            // use full campus name as the subfund
+                            subFund = campusFund.Name;
+                            campusFundId = campusFund.Id;
+                        }
+
+                        // add info to easily find/assign this fund in the view
+                        subFund = subFund.Truncate(50);
+
+
+                        if (parentAccount == null)
+                        {
+                            parentAccount = accountList.FirstOrDefault(a => a.Name == fundName );
+                        }
+
+                        var childAccount = accountList.FirstOrDefault( c => c.Name.Equals( subFund ) && c.ParentAccountId == parentAccount.Id );
+                        if ( childAccount == null )
+                        {
+                            // create a child account with a campusId if it was set
+                            childAccount = AddAccount( lookupContext, subFund, subFundGLAccount, campusFundId, parentAccount.Id, isActive, fundType );
+                            accountList.Add( childAccount );
+                        }
+
+                        transactionAccountId = childAccount.Id;
                     }
-                    else if ( completed % ReportingNumber < 1 )
+                    else
                     {
-                        SaveContributions( newTransactions );
-                        newTransactions.Clear();
-                        lookupContext = new RockContext();
+                        transactionAccountId = parentAccount.Id;
+                    }
+
+                    if ( amount == 0 && statedValue != null && statedValue != 0 )
+                    {
+                        amount = statedValue;
+                    }
+
+                    var transactionDetail = new FinancialTransactionDetail
+                    {
+                        Amount = (decimal) amount,
+                        CreatedDateTime = receivedDate,
+                        AccountId = transactionAccountId
+                    };
+                    transaction.TransactionDetails.Add( transactionDetail );
+
+                    if ( amount < 0 )
+                    {
+                        transaction.RefundDetails = new FinancialTransactionRefund
+                        {
+                            CreatedDateTime = receivedDate,
+                            RefundReasonValueId =
+                                refundReasons.Where(dv => summary != null && dv.Value.Contains(summary))
+                                             .Select(dv => (int?) dv.Id).FirstOrDefault(),
+                            RefundReasonSummary = summary
+                        };
+                    }
+                }
+
+                newTransactions.Add( transaction );
+                completed++;
+                if ( completed % percentage < 1 )
+                {
+                    int percentComplete = completed / percentage;
+                    ReportProgress( percentComplete,
+                        $"{completed:N0} contributions imported ({percentComplete}% complete).");
+                }
+                else if ( completed % ReportingNumber < 1 )
+                {
+                    SaveContributions( newTransactions );
+                    
+                    // Update transactions to prevent duplicates
+                    foreach (var financialTransaction in newTransactions.Where(nt => nt.ForeignId.HasValue))
+                    {
+                        importedContributions.Add(financialTransaction.ForeignId.Value, financialTransaction.Id);
+                    }
+                    newTransactions.Clear();
+                    lookupContext = new RockContext();
                         
-                        ReportPartialProgress();
-                    }
+                    ReportPartialProgress();
                 }
             }
 
@@ -485,14 +508,14 @@ namespace Excavator.F1
                 SaveContributions( newTransactions );
             }
 
-            ReportProgress( 100, string.Format( "Finished contribution import: {0:N0} contributions imported.", completed ) );
+            ReportProgress( 100, $"Finished contribution import: {completed:N0} contributions imported.");
         }
 
         /// <summary>
         /// Saves the contributions.
         /// </summary>
         /// <param name="newTransactions">The new transactions.</param>
-        private static void SaveContributions( List<FinancialTransaction> newTransactions )
+        private static void SaveContributions( IEnumerable<FinancialTransaction> newTransactions )
         {
             using ( var rockContext = new RockContext() )
             {
@@ -506,12 +529,12 @@ namespace Excavator.F1
         /// Maps the pledge.
         /// </summary>
         /// <param name="queryable">The queryable.</param>
+        /// <param name="tableData"></param>
         /// <exception cref="System.NotImplementedException"></exception>
         private void MapPledge( IQueryable<Row> tableData )
         {
             var lookupContext = new RockContext();
             var accountList = new FinancialAccountService( lookupContext ).Queryable().AsNoTracking().ToList();
-            var importedPledges = new FinancialPledgeService( lookupContext ).Queryable().AsNoTracking().ToList();
 
             var pledgeFrequencies = DefinedTypeCache.Read( new Guid( Rock.SystemGuid.DefinedType.FINANCIAL_FREQUENCY ), lookupContext ).DefinedValues;
             int oneTimePledgeFrequencyId = pledgeFrequencies.FirstOrDefault( f => f.Guid == new Guid( Rock.SystemGuid.DefinedValue.TRANSACTION_FREQUENCY_ONE_TIME ) ).Id;
@@ -667,7 +690,7 @@ namespace Excavator.F1
             account.GlCode = accountGL;
             account.PublicName = fundName;
             account.IsTaxDeductible = string.IsNullOrEmpty(fundType) || fundType != "Receipt";
-            account.IsActive = isActive ?? false;
+            account.IsActive = isActive ?? true;
             account.CampusId = fundCampusId ?? GetFundId(fundName);
             account.ParentAccountId = parentAccountId;
             account.CreatedByPersonAliasId = ImportPersonAliasId;

@@ -429,16 +429,13 @@ namespace Excavator.F1
             {
                 return ImportedPeople.FirstOrDefault( p => p.IndividualId == individualId );
             }
-            else if ( householdId != null )
+            if ( householdId != null )
             {
                 return ImportedPeople.Where( p => p.HouseholdId == householdId && ( includeVisitors || p.FamilyRoleId != FamilyRole.Visitor ) )
-                    .OrderBy( p => (int)p.FamilyRoleId )
-                    .FirstOrDefault();
+                                     .OrderBy( p => (int)p.FamilyRoleId )
+                                     .FirstOrDefault();
             }
-            else
-            {
-                return null;
-            }
+            return null;
         }
 
         /// <summary>
