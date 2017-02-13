@@ -258,6 +258,10 @@ namespace Excavator.CSV
                 {
                     completed += MapContribution( csvData );
                 }
+                else if (csvData.RecordType == CSVInstance.RockDataType.GROUPMEMBER)
+                {
+                    completed += LoadGroupMapping(csvData);
+                }
             } //read all files
 
             ReportProgress( 100, string.Format( "Completed import: {0:N0} rows processed.", completed ) );
