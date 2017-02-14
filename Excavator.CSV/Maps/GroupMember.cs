@@ -54,7 +54,7 @@ namespace Excavator.CSV
             var groupService = new GroupService( rockContext );
             var groupTypeRoleService = new GroupTypeRoleService( rockContext );
             var attributeService = new AttributeService( rockContext );
-            var groupMemberService = new GroupMemberService(rockContext);
+            var groupMemberService = new GroupMemberService( rockContext );
 
 
             var newHistory = new List<History>();
@@ -127,8 +127,14 @@ namespace Excavator.CSV
                     var groupRole = groupTypeRoleService.GetByGroupTypeId( groupTypeId.Value )
                                                         .FirstOrDefault( r => r.Name == grouproleName );
 
-                    var groupMember = groupMemberService.GetByGroupIdAndPersonId(groupId.Value, person.Id).FirstOrDefault();
+                    bool loadedFromMemory = true;
+                    var groupMember = newGroupMembers.FirstOrDefault(gm => gm.PersonId == person.Id);
                     if (groupMember == null)
+                    {
+                        loadedFromMemory = false;
+                        groupMember = groupMemberService.GetByGroupIdAndPersonId( groupId.Value, person.Id ).FirstOrDefault();
+                    }
+                    if ( groupMember == null )
                     {
                         groupMember = new GroupMember
                         {
@@ -136,22 +142,27 @@ namespace Excavator.CSV
                             PersonId = person.Id,
                             GroupRoleId = groupRole.Id,
                             DateTimeAdded =
-                                DateTime.ParseExact(row[20], dateFormats, CultureInfo.InvariantCulture,
-                                    DateTimeStyles.None),
+                                DateTime.ParseExact( row[20], dateFormats, CultureInfo.InvariantCulture,
+                                    DateTimeStyles.None ),
                             GroupMemberStatus = GroupMemberStatus.Active
                         };
                         groupMember.Attributes = new Dictionary<string, AttributeCache>();
                         groupMember.AttributeValues = new Dictionary<string, AttributeValueCache>();
 
-                        SetGroupMemberAttributeValues(row, groupMember, attributes);
-                        newGroupMembers.Add(groupMember);
-                    }
-                    else
-                    {
                         SetGroupMemberAttributeValues( row, groupMember, attributes );
                         newGroupMembers.Add( groupMember );
                     }
-                    
+                    else
+                    {
+                        if (!loadedFromMemory)
+                        {
+                            groupMember.LoadAttributes( rockContext );
+                        }
+//                        groupMember.Attributes = new Dictionary<string, AttributeCache>();
+//                        groupMember.AttributeValues = new Dictionary<string, AttributeValueCache>();
+                        SetGroupMemberAttributeValues( row, groupMember, attributes );
+
+                    }
                 }
 
                 completed++;
@@ -161,22 +172,27 @@ namespace Excavator.CSV
                 }
                 else if ( completed % ReportingNumber < 1 )
                 {
+//                    SaveChanges( newHistory, newGroupMembers );
                     SaveChanges( newHistory, newGroupMembers, rockContext );
+
                     ReportPartialProgress();
 
+                    rockContext.SaveChanges(DisableAuditing);
                     // Reset lookup context
-                    rockContext.SaveChanges( DisableAuditing );
                     rockContext = new RockContext();
                     newHistory.Clear();
                     newGroupMembers.Clear();
-                    
+
+                    groupMemberService = new GroupMemberService(rockContext);
                     personService = new PersonService( rockContext );
                     groupService = new GroupService( rockContext );
                     groupTypeRoleService = new GroupTypeRoleService( rockContext );
                 }
             }
 
+//            SaveChanges( newHistory, newGroupMembers);
             SaveChanges( newHistory, newGroupMembers, rockContext );
+
 
             ReportProgress( 0, string.Format( "Finished group member import: {0:N0} rows processed", completed ) );
             return completed;
@@ -184,13 +200,13 @@ namespace Excavator.CSV
 
         private static void SetGroupMemberAttributeValues( string[] row, GroupMember groupMember, List<Attribute> attributes )
         {
-            if ( !string.IsNullOrWhiteSpace( row[17] ) )
-            {
-                UpdateGroupMemberAttribute( "AssignedServices", groupMember, row[17], attributes );
-            }
             if ( !string.IsNullOrWhiteSpace( row[18] ) )
             {
-                AddGroupMemberAttribute( "AssignedTeam", groupMember, row[18], attributes );
+                UpdateGroupMemberAttribute( "AssignedServices", groupMember, row[18].Trim(), attributes );
+            }
+            if ( !string.IsNullOrWhiteSpace( row[17] ) )
+            {
+                AddGroupMemberAttribute( "AssignedTeam", groupMember, row[17].Replace(", ", ","), attributes );
             }
 
             if ( !string.IsNullOrWhiteSpace( row[22] ) )
@@ -204,58 +220,47 @@ namespace Excavator.CSV
         /// </summary>
         /// <param name="newFamilyList">The family list.</param>
         /// <param name="visitorList">The optional visitor list.</param>
-        private void SaveChanges( List<History> newHistory, List<GroupMember> newGroupMembers, RockContext rockContext )
+        private void SaveChanges( List<History> newHistory, List<GroupMember> newGroupMembers, RockContext rockContext)
         {
-            if ( newHistory.Any() )
+//            var rockContext = new RockContext();
+            rockContext.WrapTransaction( () =>
             {
-                rockContext.WrapTransaction( () =>
+                rockContext.Histories.AddRange( newHistory );
+                rockContext.GroupMembers.AddRange( newGroupMembers );
+                rockContext.SaveChanges(DisableAuditing);
+                // new group members
+                foreach ( var groupMember in newGroupMembers )
                 {
-                    rockContext.Histories.AddRange( newHistory );
-                    rockContext.SaveChanges( DisableAuditing );
-                } );
-            }
-
-            if ( newGroupMembers.Any() )
-            {
-                rockContext.WrapTransaction( () =>
-                {
-                    rockContext.GroupMembers.AddRange( newGroupMembers );
-                    rockContext.SaveChanges( DisableAuditing );
-
-//                     new group members
-                    foreach ( var groupMember in newGroupMembers )
+                    foreach ( var attributeCache in groupMember.Attributes.Select( a => a.Value ) )
                     {
-                        foreach ( var attributeCache in groupMember.Attributes.Select( a => a.Value ) )
+                        var existingValue = rockContext.AttributeValues.FirstOrDefault( v => v.Attribute.Key == attributeCache.Key && v.EntityId == groupMember.Id );
+                        var newAttributeValue = groupMember.AttributeValues[attributeCache.Key];
+
+                        // set the new value and add it to the database
+                        if ( existingValue == null )
                         {
-                            var existingValue = rockContext.AttributeValues.FirstOrDefault( v => v.Attribute.Key == attributeCache.Key && v.EntityId == groupMember.Id );
-                            var newAttributeValue = groupMember.AttributeValues[attributeCache.Key];
+                            existingValue = new AttributeValue();
+                            existingValue.AttributeId = newAttributeValue.AttributeId;
+                            existingValue.EntityId = groupMember.Id;
+                            existingValue.Value = newAttributeValue.Value;
 
-                            // set the new value and add it to the database
-                            if ( existingValue == null )
-                            {
-                                existingValue = new AttributeValue();
-                                existingValue.AttributeId = newAttributeValue.AttributeId;
-                                existingValue.EntityId = groupMember.Id;
-                                existingValue.Value = newAttributeValue.Value;
-
-                                rockContext.AttributeValues.Add( existingValue );
-                            }
-                            else
-                            {
-                                existingValue.Value = newAttributeValue.Value;
-                                rockContext.Entry( existingValue ).State = EntityState.Modified;
-                            }
-
+                            rockContext.AttributeValues.Add( existingValue );
                         }
-                    }
-                    rockContext.SaveChanges( DisableAuditing );
-                } );
-            }
+                        else
+                        {
+                            existingValue.Value = newAttributeValue.Value;
+                            rockContext.Entry( existingValue ).State = EntityState.Modified;
+                        }
 
+                    }
+                }
+                rockContext.SaveChanges( DisableAuditing );
+            } );
         }
 
         private static void AddGroupMemberAttribute( string attributeKey, GroupMember groupMember, string attributeValue, List<Attribute> attributes )
         {
+            // get attribute
             var attributeModel = attributes.FirstOrDefault( a => a.Key == attributeKey );
             if ( attributeModel == null )
             {
@@ -263,23 +268,25 @@ namespace Excavator.CSV
                 " attribute to exist for " + groupMember.Group.GroupType.Name;
                 throw new Exception( message );
             }
-            var attributeCache = AttributeCache.Read( attributeModel );
-            if ( attributeCache != null && !string.IsNullOrWhiteSpace( attributeValue ) )
+            var attribute = AttributeCache.Read( attributeModel );
+
+            if ( attribute != null && !string.IsNullOrWhiteSpace( attributeValue ) )
             {
-                if ( groupMember.Attributes.ContainsKey( attributeCache.Key ) )
+                Console.WriteLine("Added attribute");
+                if ( groupMember.Attributes.ContainsKey( attribute.Key ) )
                 {
-                    groupMember.AttributeValues[attributeCache.Key] = new AttributeValueCache()
+                    groupMember.AttributeValues[attribute.Key] = new AttributeValueCache()
                     {
-                        AttributeId = attributeCache.Id,
+                        AttributeId = attribute.Id,
                         Value = attributeValue
                     };
                 }
                 else
                 {
-                    groupMember.Attributes.Add( attributeCache.Key, attributeCache );
-                    groupMember.AttributeValues.Add( attributeCache.Key, new AttributeValueCache()
+                    groupMember.Attributes.Add( attribute.Key, attribute );
+                    groupMember.AttributeValues.Add( attribute.Key, new AttributeValueCache()
                     {
-                        AttributeId = attributeCache.Id,
+                        AttributeId = attribute.Id,
                         Value = attributeValue
                     } );
                 }
