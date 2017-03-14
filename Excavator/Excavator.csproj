@@ -61,6 +61,9 @@
     <ApplicationIcon>Resources\rock.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="DDay.iCal">
+      <HintPath>..\..\Rock\RockWeb\Bin\DDay.iCal.dll</HintPath>
+    </Reference>
     <Reference Include="DotLiquid">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Rock\DotLiquid.dll</HintPath>

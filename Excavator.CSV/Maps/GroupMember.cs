@@ -35,6 +35,19 @@ namespace Excavator.CSV
     partial class CSVComponent
     {
         #region Main Methods
+        
+        private const int GROUP_MEMBER_MEMBER_STATUS_COLUMN_NUMBER = 21;
+        private const int GROUP_MEMBER_INDIVIDUAL_ID_COLUMN_NUMBER = 2;
+        private const int GROUP_MEMBER_GROUP_ID_COLUMN_NUMBER = 16;
+        private const int GROUP_MEMBER_GROUP_TYPE_ID_COLUMN_NUMBER = 15;
+        private const int GROUP_MEMBER_JOIN_DATE_COLUMN_NUMBER = 22;
+        private const int GROUP_MEMBER_JOB_COLUMN_NUMBER = 24;
+        private const int GROUP_MEMBER_MINISTRY_COLUMN_NUMBER = 7;
+        private const int GROUP_MEMBER_ACTIVITY_COLUMN_NUMBER = 8;
+        private const int GROUP_MEMBER_SCHEDULE_COLUMN_NUMBER = 10;
+        private const int GROUP_MEMBER_ROLE_COLUMN_NUMBER = 18;
+        private const int GROUP_MEMBER_TEAM_COLUMN_NUMBER = 19;
+        private const int GROUP_MEMBER_SERVICE_COLUMN_NUMBER = 20;
 
         /// <summary>
         /// Loads the individual data.
@@ -45,7 +58,7 @@ namespace Excavator.CSV
             var rockContext = new RockContext();
 
             // Set the supported date formats
-            var dateFormats = new[] { "yyyy-MM-dd", "M/dd/yyyy", "MM/dd/yyyy" };
+            var dateFormats = new[] { "yyyy-MM-dd", "M/dd/yyyy", "M/d/yyyy" };
 
             int completed = 0;
             ReportProgress( 0, "Starting Group Member import " );
@@ -67,8 +80,8 @@ namespace Excavator.CSV
             string[] row;
             while ( ( row = csvData.Database.FirstOrDefault() ) != null )
             {
-                var groupId = row[15].AsIntegerOrNull();
-                var individualId = row[2].AsIntegerOrNull();
+                var groupId = row[GROUP_MEMBER_GROUP_ID_COLUMN_NUMBER].AsIntegerOrNull();
+                var individualId = row[GROUP_MEMBER_INDIVIDUAL_ID_COLUMN_NUMBER].AsIntegerOrNull();
                 if ( !groupId.HasValue || !individualId.HasValue )
                 {
                     continue;
@@ -81,7 +94,7 @@ namespace Excavator.CSV
                     continue;
                 }
 
-                string memberStatus = string.IsNullOrWhiteSpace( row[19] ) ? "Inactive" : row[19];
+                string memberStatus = string.IsNullOrWhiteSpace( row[GROUP_MEMBER_MEMBER_STATUS_COLUMN_NUMBER] ) ? "Inactive" : row[GROUP_MEMBER_MEMBER_STATUS_COLUMN_NUMBER];
 
                 if ( memberStatus == "Inactive" )
                 {
@@ -92,8 +105,9 @@ namespace Excavator.CSV
                         RelatedEntityTypeId = groupEntityTypeId,
                         RelatedEntityId = groupId,
                         CategoryId = addToGroupCategoryId,
-                        CreatedDateTime = DateTime.ParseExact( row[20], dateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None ),
-                        Summary = "Added to group.",
+                        CreatedDateTime = DateTime.ParseExact( row[GROUP_MEMBER_JOIN_DATE_COLUMN_NUMBER], dateFormats, new CultureInfo( "en-US" ), DateTimeStyles.None ),
+                        Summary = string.Format( "Added to group (team: {0}, service: {1}, role: {2}, job: {3})", row[GROUP_MEMBER_TEAM_COLUMN_NUMBER], 
+                                    row[GROUP_MEMBER_SERVICE_COLUMN_NUMBER], row[GROUP_MEMBER_ROLE_COLUMN_NUMBER], row[GROUP_MEMBER_JOB_COLUMN_NUMBER] ),
                         Caption = groupService.Get( groupId.Value ).Name
                     };
 
@@ -104,8 +118,9 @@ namespace Excavator.CSV
                         RelatedEntityTypeId = groupEntityTypeId,
                         RelatedEntityId = groupId,
                         CategoryId = addToGroupCategoryId,
-                        CreatedDateTime = DateTime.ParseExact( row[21], dateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None ),
-                        Summary = "Removed from group.",
+                        CreatedDateTime = DateTime.ParseExact( row[GROUP_MEMBER_JOIN_DATE_COLUMN_NUMBER], dateFormats, new CultureInfo( "en-US" ), DateTimeStyles.None ),
+                        Summary = string.Format( "Removed from group (team: {0}, service: {1}, role: {2}, job: {3})", row[GROUP_MEMBER_TEAM_COLUMN_NUMBER],
+                                    row[GROUP_MEMBER_SERVICE_COLUMN_NUMBER], row[GROUP_MEMBER_ROLE_COLUMN_NUMBER], row[GROUP_MEMBER_JOB_COLUMN_NUMBER] ),
                         Caption = groupService.Get( groupId.Value ).Name
                     };
 
@@ -114,8 +129,8 @@ namespace Excavator.CSV
                 }
                 else
                 {
-                    var groupTypeId = row[14].AsIntegerOrNull();
-                    string grouproleName = row[16];
+                    var groupTypeId = row[GROUP_MEMBER_GROUP_TYPE_ID_COLUMN_NUMBER].AsIntegerOrNull();
+                    string grouproleName = row[GROUP_MEMBER_ROLE_COLUMN_NUMBER];
 
                     if ( !groupTypeId.HasValue || string.IsNullOrWhiteSpace( grouproleName ) )
                     {
@@ -125,7 +140,7 @@ namespace Excavator.CSV
                     var attributes = attributeService.GetByEntityTypeId( groupMemberEntityTypeId ).Where( a => a.EntityTypeQualifierValue == groupTypeId.ToString() ).ToList();
 
                     var groupRole = groupTypeRoleService.GetByGroupTypeId( groupTypeId.Value )
-                                                        .FirstOrDefault( r => r.Name == grouproleName );
+                                                        .FirstOrDefault( r => r.Name == grouproleName ) ?? group.GroupType.DefaultGroupRole;
 
                     bool loadedFromMemory = true;
                     var groupMember = newGroupMembers.FirstOrDefault(gm => gm.PersonId == person.Id);
@@ -136,14 +151,14 @@ namespace Excavator.CSV
                     }
                     if ( groupMember == null )
                     {
+                        var dateTimeAdded = DateTime.ParseExact(row[GROUP_MEMBER_JOIN_DATE_COLUMN_NUMBER], dateFormats, new CultureInfo("en-US"),
+                            DateTimeStyles.None);
                         groupMember = new GroupMember
                         {
                             GroupId = groupId.Value,
                             PersonId = person.Id,
                             GroupRoleId = groupRole.Id,
-                            DateTimeAdded =
-                                DateTime.ParseExact( row[20], dateFormats, CultureInfo.InvariantCulture,
-                                    DateTimeStyles.None ),
+                            DateTimeAdded = dateTimeAdded,
                             GroupMemberStatus = GroupMemberStatus.Active
                         };
                         groupMember.Attributes = new Dictionary<string, AttributeCache>();
@@ -158,10 +173,7 @@ namespace Excavator.CSV
                         {
                             groupMember.LoadAttributes( rockContext );
                         }
-//                        groupMember.Attributes = new Dictionary<string, AttributeCache>();
-//                        groupMember.AttributeValues = new Dictionary<string, AttributeValueCache>();
                         SetGroupMemberAttributeValues( row, groupMember, attributes );
-
                     }
                 }
 
@@ -172,7 +184,6 @@ namespace Excavator.CSV
                 }
                 else if ( completed % ReportingNumber < 1 )
                 {
-//                    SaveChanges( newHistory, newGroupMembers );
                     SaveChanges( newHistory, newGroupMembers, rockContext );
 
                     ReportPartialProgress();
@@ -189,8 +200,7 @@ namespace Excavator.CSV
                     groupTypeRoleService = new GroupTypeRoleService( rockContext );
                 }
             }
-
-//            SaveChanges( newHistory, newGroupMembers);
+            
             SaveChanges( newHistory, newGroupMembers, rockContext );
 
 
@@ -200,18 +210,18 @@ namespace Excavator.CSV
 
         private static void SetGroupMemberAttributeValues( string[] row, GroupMember groupMember, List<Attribute> attributes )
         {
-            if ( !string.IsNullOrWhiteSpace( row[18] ) )
+            if ( !string.IsNullOrWhiteSpace( row[GROUP_MEMBER_SERVICE_COLUMN_NUMBER] ) )
             {
-                UpdateGroupMemberAttribute( "AssignedServices", groupMember, row[18].Trim(), attributes );
+                UpdateGroupMemberAttribute( "AssignedServices", groupMember, row[GROUP_MEMBER_SERVICE_COLUMN_NUMBER].Trim(), attributes );
             }
-            if ( !string.IsNullOrWhiteSpace( row[17] ) )
+            if ( !string.IsNullOrWhiteSpace( row[GROUP_MEMBER_TEAM_COLUMN_NUMBER] ) )
             {
-                AddGroupMemberAttribute( "AssignedTeam", groupMember, row[17].Replace(", ", ","), attributes );
+                AddGroupMemberAttribute( "AssignedTeam", groupMember, row[GROUP_MEMBER_TEAM_COLUMN_NUMBER].Replace(", ", ","), attributes );
             }
 
-            if ( !string.IsNullOrWhiteSpace( row[22] ) )
+            if ( !string.IsNullOrWhiteSpace( row[GROUP_MEMBER_JOB_COLUMN_NUMBER] ) )
             {
-                AddGroupMemberAttribute( "Job", groupMember, row[22], attributes );
+                AddGroupMemberAttribute( "Job", groupMember, row[GROUP_MEMBER_JOB_COLUMN_NUMBER], attributes );
             }
         }
 
