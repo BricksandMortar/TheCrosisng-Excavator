@@ -302,7 +302,7 @@ namespace Excavator.F1
             var newSchools = new List<DefinedValue>();
             var previousNamesList = new Dictionary<Guid, string>();
             _primaryCampus = campusService.Queryable().FirstOrDefault();
-            _tceCampus = campusService.Queryable().FirstOrDefault(c => c.Name == "TCE Campus");
+            _tceCampus = campusService.Queryable().FirstOrDefault(c => c.ShortCode == "TCE");
 
 
             List<Note> noteList = new List<Note>();
