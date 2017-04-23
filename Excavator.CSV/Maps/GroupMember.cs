@@ -35,7 +35,7 @@ namespace Excavator.CSV
     partial class CSVComponent
     {
         #region Main Methods
-        
+
         private const int GROUP_MEMBER_MEMBER_STATUS_COLUMN_NUMBER = 21;
         private const int GROUP_MEMBER_INDIVIDUAL_ID_COLUMN_NUMBER = 2;
         private const int GROUP_MEMBER_GROUP_ID_COLUMN_NUMBER = 16;
@@ -58,7 +58,7 @@ namespace Excavator.CSV
             var rockContext = new RockContext();
 
             // Set the supported date formats
-            var dateFormats = new[] { "yyyy-MM-dd", "M/dd/yyyy", "M/d/yyyy" };
+            var dateFormats = new[] { "yyyy-MM-dd", "M/dd/yyyy", "M/d/yyyy", "M/d/yy", "M/dd/yy" };
 
             int completed = 0;
             ReportProgress( 0, "Starting Group Member import " );
@@ -95,6 +95,16 @@ namespace Excavator.CSV
                 }
 
                 string memberStatus = string.IsNullOrWhiteSpace( row[GROUP_MEMBER_MEMBER_STATUS_COLUMN_NUMBER] ) ? "Inactive" : row[GROUP_MEMBER_MEMBER_STATUS_COLUMN_NUMBER];
+                DateTime createdDateTime;
+                try
+                {
+                    createdDateTime = DateTime.ParseExact( row[GROUP_MEMBER_JOIN_DATE_COLUMN_NUMBER], dateFormats,
+                        new CultureInfo( "en-US" ), DateTimeStyles.None );
+                }
+                catch ( Exception exception )
+                {
+                    throw new Exception( "Failed to parse created date time for person with individua id " + individualId + exception.Message );
+                }
 
                 if ( memberStatus == "Inactive" )
                 {
@@ -105,8 +115,8 @@ namespace Excavator.CSV
                         RelatedEntityTypeId = groupEntityTypeId,
                         RelatedEntityId = groupId,
                         CategoryId = addToGroupCategoryId,
-                        CreatedDateTime = DateTime.ParseExact( row[GROUP_MEMBER_JOIN_DATE_COLUMN_NUMBER], dateFormats, new CultureInfo( "en-US" ), DateTimeStyles.None ),
-                        Summary = string.Format( "Added to group (team: {0}, service: {1}, role: {2}, job: {3})", row[GROUP_MEMBER_TEAM_COLUMN_NUMBER], 
+                        CreatedDateTime = createdDateTime,
+                        Summary = string.Format( "Added to group (team: {0}, service: {1}, role: {2}, job: {3})", row[GROUP_MEMBER_TEAM_COLUMN_NUMBER],
                                     row[GROUP_MEMBER_SERVICE_COLUMN_NUMBER], row[GROUP_MEMBER_ROLE_COLUMN_NUMBER], row[GROUP_MEMBER_JOB_COLUMN_NUMBER] ),
                         Caption = groupService.Get( groupId.Value ).Name
                     };
@@ -118,7 +128,7 @@ namespace Excavator.CSV
                         RelatedEntityTypeId = groupEntityTypeId,
                         RelatedEntityId = groupId,
                         CategoryId = addToGroupCategoryId,
-                        CreatedDateTime = DateTime.ParseExact( row[GROUP_MEMBER_JOIN_DATE_COLUMN_NUMBER], dateFormats, new CultureInfo( "en-US" ), DateTimeStyles.None ),
+                        CreatedDateTime = createdDateTime,
                         Summary = string.Format( "Removed from group (team: {0}, service: {1}, role: {2}, job: {3})", row[GROUP_MEMBER_TEAM_COLUMN_NUMBER],
                                     row[GROUP_MEMBER_SERVICE_COLUMN_NUMBER], row[GROUP_MEMBER_ROLE_COLUMN_NUMBER], row[GROUP_MEMBER_JOB_COLUMN_NUMBER] ),
                         Caption = groupService.Get( groupId.Value ).Name
@@ -143,16 +153,16 @@ namespace Excavator.CSV
                                                         .FirstOrDefault( r => r.Name == grouproleName ) ?? group.GroupType.DefaultGroupRole;
 
                     bool loadedFromMemory = true;
-                    var groupMember = newGroupMembers.FirstOrDefault(gm => gm.PersonId == person.Id);
-                    if (groupMember == null)
+                    var groupMember = newGroupMembers.FirstOrDefault( gm => gm.PersonId == person.Id );
+                    if ( groupMember == null )
                     {
                         loadedFromMemory = false;
                         groupMember = groupMemberService.GetByGroupIdAndPersonId( groupId.Value, person.Id ).FirstOrDefault();
                     }
                     if ( groupMember == null )
                     {
-                        var dateTimeAdded = DateTime.ParseExact(row[GROUP_MEMBER_JOIN_DATE_COLUMN_NUMBER], dateFormats, new CultureInfo("en-US"),
-                            DateTimeStyles.None);
+                        var dateTimeAdded = DateTime.ParseExact( row[GROUP_MEMBER_JOIN_DATE_COLUMN_NUMBER], dateFormats, new CultureInfo( "en-US" ),
+                            DateTimeStyles.None );
                         groupMember = new GroupMember
                         {
                             GroupId = groupId.Value,
@@ -169,7 +179,7 @@ namespace Excavator.CSV
                     }
                     else
                     {
-                        if (!loadedFromMemory)
+                        if ( !loadedFromMemory )
                         {
                             groupMember.LoadAttributes( rockContext );
                         }
@@ -188,19 +198,19 @@ namespace Excavator.CSV
 
                     ReportPartialProgress();
 
-                    rockContext.SaveChanges(DisableAuditing);
+                    rockContext.SaveChanges( DisableAuditing );
                     // Reset lookup context
                     rockContext = new RockContext();
                     newHistory.Clear();
                     newGroupMembers.Clear();
 
-                    groupMemberService = new GroupMemberService(rockContext);
+                    groupMemberService = new GroupMemberService( rockContext );
                     personService = new PersonService( rockContext );
                     groupService = new GroupService( rockContext );
                     groupTypeRoleService = new GroupTypeRoleService( rockContext );
                 }
             }
-            
+
             SaveChanges( newHistory, newGroupMembers, rockContext );
 
 
@@ -208,7 +218,7 @@ namespace Excavator.CSV
             return completed;
         }
 
-        private static void SetGroupMemberAttributeValues( string[] row, GroupMember groupMember, List<Attribute> attributes )
+        private void SetGroupMemberAttributeValues( string[] row, GroupMember groupMember, List<Attribute> attributes )
         {
             if ( !string.IsNullOrWhiteSpace( row[GROUP_MEMBER_SERVICE_COLUMN_NUMBER] ) )
             {
@@ -216,7 +226,7 @@ namespace Excavator.CSV
             }
             if ( !string.IsNullOrWhiteSpace( row[GROUP_MEMBER_TEAM_COLUMN_NUMBER] ) )
             {
-                AddGroupMemberAttribute( "AssignedTeam", groupMember, row[GROUP_MEMBER_TEAM_COLUMN_NUMBER].Replace(", ", ","), attributes );
+                AddGroupMemberAttribute( "AssignedTeam", groupMember, row[GROUP_MEMBER_TEAM_COLUMN_NUMBER].Replace( ", ", "," ), attributes );
             }
 
             if ( !string.IsNullOrWhiteSpace( row[GROUP_MEMBER_JOB_COLUMN_NUMBER] ) )
@@ -230,14 +240,14 @@ namespace Excavator.CSV
         /// </summary>
         /// <param name="newFamilyList">The family list.</param>
         /// <param name="visitorList">The optional visitor list.</param>
-        private void SaveChanges( List<History> newHistory, List<GroupMember> newGroupMembers, RockContext rockContext)
+        private void SaveChanges( List<History> newHistory, List<GroupMember> newGroupMembers, RockContext rockContext )
         {
-//            var rockContext = new RockContext();
+            //            var rockContext = new RockContext();
             rockContext.WrapTransaction( () =>
             {
                 rockContext.Histories.AddRange( newHistory );
                 rockContext.GroupMembers.AddRange( newGroupMembers );
-                rockContext.SaveChanges(DisableAuditing);
+                rockContext.SaveChanges( DisableAuditing );
                 // new group members
                 foreach ( var groupMember in newGroupMembers )
                 {
@@ -268,73 +278,85 @@ namespace Excavator.CSV
             } );
         }
 
-        private static void AddGroupMemberAttribute( string attributeKey, GroupMember groupMember, string attributeValue, List<Attribute> attributes )
+        private void AddGroupMemberAttribute( string attributeKey, GroupMember groupMember, string attributeValue, List<Attribute> attributes )
         {
             // get attribute
             var attributeModel = attributes.FirstOrDefault( a => a.Key == attributeKey );
             if ( attributeModel == null )
             {
                 string message = "Expected " + attributeKey +
-                " attribute to exist for " + groupMember.Group.GroupType.Name;
-                throw new Exception( message );
+                                 " attribute to exist for " +
+                                 ( groupMember.Group == null
+                                     ? groupMember.GroupId.ToString()
+                                     : groupMember.Group?.GroupType?.Name );
+                ReportProgress( 0, message );
             }
-            var attribute = AttributeCache.Read( attributeModel );
-
-            if ( attribute != null && !string.IsNullOrWhiteSpace( attributeValue ) )
+            else
             {
-                Console.WriteLine("Added attribute");
-                if ( groupMember.Attributes.ContainsKey( attribute.Key ) )
-                {
-                    groupMember.AttributeValues[attribute.Key] = new AttributeValueCache()
-                    {
-                        AttributeId = attribute.Id,
-                        Value = attributeValue
-                    };
-                }
-                else
-                {
-                    groupMember.Attributes.Add( attribute.Key, attribute );
-                    groupMember.AttributeValues.Add( attribute.Key, new AttributeValueCache()
-                    {
-                        AttributeId = attribute.Id,
-                        Value = attributeValue
-                    } );
-                }
+                var attribute = AttributeCache.Read( attributeModel );
 
+                if ( attribute != null && !string.IsNullOrWhiteSpace( attributeValue ) )
+                {
+                    Console.WriteLine( "Added attribute" );
+                    if ( groupMember.Attributes.ContainsKey( attribute.Key ) )
+                    {
+                        groupMember.AttributeValues[attribute.Key] = new AttributeValueCache()
+                        {
+                            AttributeId = attribute.Id,
+                            Value = attributeValue
+                        };
+                    }
+                    else
+                    {
+                        groupMember.Attributes.Add( attribute.Key, attribute );
+                        groupMember.AttributeValues.Add( attribute.Key, new AttributeValueCache()
+                        {
+                            AttributeId = attribute.Id,
+                            Value = attributeValue
+                        } );
+                    }
+                }
             }
+            
         }
 
-        private static void UpdateGroupMemberAttribute( string attributeKey, GroupMember groupMember, string attributeValue, List<Attribute> attributes )
+        private void UpdateGroupMemberAttribute( string attributeKey, GroupMember groupMember, string attributeValue, List<Attribute> attributes )
         {
             var attributeModel = attributes.FirstOrDefault( a => a.Key == attributeKey );
-            if ( attributeModel == null )
+            if (attributeModel == null)
             {
                 string message = "Expected " + attributeKey +
-                " attribute to exist for " + groupMember.Group.GroupType.Name;
-                throw new Exception( message );
+                                  " attribute to exist for " +
+                                  ( groupMember.Group == null
+                                      ? groupMember.GroupId.ToString()
+                                      : groupMember.Group?.GroupType?.Name );
+                ReportProgress( 0, message );
             }
-            var attributeCache = AttributeCache.Read( attributeModel );
-            if ( attributeCache != null && !string.IsNullOrWhiteSpace( attributeValue ) )
+            else
             {
-                if ( groupMember.Attributes.ContainsKey( attributeCache.Key ) )
+                var attributeCache = AttributeCache.Read( attributeModel );
+                if ( attributeCache != null && !string.IsNullOrWhiteSpace( attributeValue ) )
                 {
-                    groupMember.AttributeValues[attributeCache.Key] = new AttributeValueCache()
+                    if ( groupMember.Attributes.ContainsKey( attributeCache.Key ) )
                     {
-                        AttributeId = attributeCache.Id,
-                        Value = groupMember.AttributeValues[attributeCache.Key].Value + "," + attributeValue
-                    };
-                }
-                else
-                {
-                    groupMember.Attributes.Add( attributeCache.Key, attributeCache );
-                    groupMember.AttributeValues.Add( attributeCache.Key, new AttributeValueCache()
+                        groupMember.AttributeValues[attributeCache.Key] = new AttributeValueCache()
+                        {
+                            AttributeId = attributeCache.Id,
+                            Value = groupMember.AttributeValues[attributeCache.Key].Value + "," + attributeValue
+                        };
+                    }
+                    else
                     {
-                        AttributeId = attributeCache.Id,
-                        Value = attributeValue
-                    } );
+                        groupMember.Attributes.Add( attributeCache.Key, attributeCache );
+                        groupMember.AttributeValues.Add( attributeCache.Key, new AttributeValueCache()
+                        {
+                            AttributeId = attributeCache.Id,
+                            Value = attributeValue
+                        } );
+                    }
                 }
-
             }
+            
         }
 
         #endregion Main Methods
