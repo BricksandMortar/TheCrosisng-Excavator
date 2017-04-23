@@ -87,11 +87,21 @@ namespace Excavator.CSV
                 }
 
                 var attendance = new Attendance();
+                attendance.PersonAliasId = person.PrimaryAliasId;
                 attendance.GroupId = groupId;
                 attendance.LocationId = groupLocation.LocationId;
                 attendance.ScheduleId = schedule.Id;
                 attendance.DidAttend = true;
                 attendance.StartDateTime = startDateTime;
+                attendance.RSVP = RSVP.Yes;
+                if (group.CampusId.HasValue)
+                {
+                    attendance.CampusId = group.CampusId;
+                }
+                else
+                {
+                    attendance.CampusId = group.Name.Contains("TCE") ? 2 : 1;
+                }
                 attendances.Add(attendance);
 
                 completed++;
