@@ -149,6 +149,13 @@ namespace Excavator.CSV
 
                     var attributes = attributeService.GetByEntityTypeId( groupMemberEntityTypeId ).Where( a => a.EntityTypeQualifierValue == groupTypeId.ToString() ).ToList();
 
+                    // Get the attributes for this specific group's group members
+                    int entityTypeId = EntityTypeCache.Read( typeof( GroupMember ) ).Id;
+                    string qualifierColumn = "GroupId";
+                    string qualifierValue = group.Id.ToString();
+                    var groupMemberAttributes = attributeService.Get( entityTypeId, qualifierColumn, qualifierValue );
+                    attributes.AddRange(groupMemberAttributes);
+
                     var groupRole = groupTypeRoleService.GetByGroupTypeId( groupTypeId.Value )
                                                         .FirstOrDefault( r => r.Name == grouproleName ) ?? group.GroupType.DefaultGroupRole;
 
