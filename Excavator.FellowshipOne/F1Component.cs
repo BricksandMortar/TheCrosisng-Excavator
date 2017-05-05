@@ -105,6 +105,7 @@ namespace Excavator.F1
         protected static int TextFieldTypeId;
         protected static int IntegerFieldTypeId;
         protected static int PersonEntityTypeId;
+        protected static int GroupEntityTypeId;
         protected static int? AuthProviderEntityTypeId;
 
         // Custom attribute types
@@ -113,6 +114,7 @@ namespace Excavator.F1
         protected static AttributeCache HouseholdIdAttribute;
         protected static AttributeCache InFellowshipLoginAttribute;
         protected static AttributeCache SecondaryEmailAttribute;
+        protected static AttributeCache HouseholdPositionAttribute;
 
         #endregion Fields
 
@@ -276,6 +278,7 @@ namespace Excavator.F1
             IntegerFieldTypeId = FieldTypeCache.Read( new Guid( Rock.SystemGuid.FieldType.INTEGER ) ).Id;
             TextFieldTypeId = FieldTypeCache.Read( new Guid( Rock.SystemGuid.FieldType.TEXT ) ).Id;
             PersonEntityTypeId = EntityTypeCache.Read( "Rock.Model.Person" ).Id;
+            GroupEntityTypeId = EntityTypeCache.Read( "Rock.Model.Group" ).Id;
             CampusList = CampusCache.All();
 
             int attributeEntityTypeId = EntityTypeCache.Read( "Rock.Model.Attribute" ).Id;
@@ -288,7 +291,32 @@ namespace Excavator.F1
             // Look up and create attributes for F1 unique identifiers if they don't exist
             var personAttributes = attributeService.GetByEntityTypeId( PersonEntityTypeId ).AsNoTracking().ToList();
 
+            var householdPosition =
+                personAttributes.FirstOrDefault(
+                    a => a.Key.Equals( "HouseHoldPosition", StringComparison.InvariantCultureIgnoreCase ) );
+            if( householdPosition == null )
+            {
+                householdPosition = new Rock.Model.Attribute();
+                householdPosition.Key = "HouseHoldPosition";
+                householdPosition.Name = "F1 HouseHoldPosition";
+                householdPosition.FieldTypeId = TextFieldTypeId;
+                householdPosition.EntityTypeId = PersonEntityTypeId;
+                householdPosition.EntityTypeQualifierValue = string.Empty;
+                householdPosition.EntityTypeQualifierColumn = string.Empty;
+                householdPosition.Description = "The person's household position in F1";
+                householdPosition.DefaultValue = string.Empty;
+                householdPosition.IsMultiValue = false;
+                householdPosition.IsRequired = false;
+                householdPosition.Order = 0;
+
+                lookupContext.Attributes.Add( householdPosition );
+                lookupContext.SaveChanges( DisableAuditing );
+                personAttributes.Add( householdPosition );
+            }
+
             var householdAttribute = personAttributes.FirstOrDefault( a => a.Key.Equals( "F1HouseholdId", StringComparison.InvariantCultureIgnoreCase ) );
+            
+
             if ( householdAttribute == null )
             {
                 householdAttribute = new Rock.Model.Attribute();
@@ -373,6 +401,7 @@ namespace Excavator.F1
                 lookupContext.SaveChanges( DisableAuditing );
             }
 
+            HouseholdPositionAttribute = AttributeCache.Read(householdPosition.Id);
             IndividualIdAttribute = AttributeCache.Read( individualAttribute.Id );
             HouseholdIdAttribute = AttributeCache.Read( householdAttribute.Id );
             InFellowshipLoginAttribute = AttributeCache.Read( infellowshipLoginAttribute.Id );
@@ -397,20 +426,27 @@ namespace Excavator.F1
                     PersonId = (int)av.EntityId,
                     HouseholdId = av.Value
                 } ).ToList();
+            var householdPositionList = attributeValueService.GetByAttributeId( householdPosition.Id ).AsNoTracking()
+                .Select( av => new
+                {
+                    PersonId = ( int ) av.EntityId,
+                    Position = av.Value
+                } ).ToList();
 
-            ImportedPeople = householdIdList.GroupJoin( aliasIdList,
-                household => household.PersonId,
-                aliases => aliases.PersonId,
-                ( household, aliases ) => new PersonKeys
-                    {
-                        PersonAliasId = aliases.Select( a => a.PersonAliasId ).FirstOrDefault(),
-                        PersonId = household.PersonId,
-                        IndividualId = aliases.Select( a => a.IndividualId ).FirstOrDefault(),
-                        HouseholdId = household.HouseholdId.AsType<int?>(),
-                        FamilyRoleId = aliases.Select( a => a.FamilyRole.ConvertToEnum<FamilyRole>( 0 ) ).FirstOrDefault()
-                    }
-                ).ToList();
-
+            ImportedPeople = householdIdList
+                .Join(householdPositionList, householdIds => householdIds.PersonId, householdPositions => householdPositions.PersonId, (houseHoldIds, householdPositions) => new {houseHold = houseHoldIds, householdPositions})
+                .GroupJoin(aliasIdList, hhp => hhp.houseHold.PersonId, aliadIds => aliadIds.PersonId, (householdsWithPositions, aliasIds) => new {HouseHoldWithPositions = householdsWithPositions, aliases = aliasIds})
+                .Select(a => new PersonKeys
+                {
+                    PersonAliasId = a.aliases.Select( x => x.PersonAliasId ).FirstOrDefault(),
+                    PersonId = a.HouseHoldWithPositions.houseHold.PersonId,
+                    IndividualId = a.aliases.Select( x => x.IndividualId ).FirstOrDefault(),
+                    HouseholdId = a.HouseHoldWithPositions.houseHold.HouseholdId.AsType<int?>(),
+                    FamilyRoleId = a.aliases.Select( x => x.FamilyRole.ConvertToEnum<FamilyRole>( 0 ) ).FirstOrDefault(),
+                    HouseholdPosition = a.HouseHoldWithPositions.householdPositions.Position
+                } )
+                .ToList();
+         
             ImportedBatches = new FinancialBatchService( lookupContext ).Queryable().AsNoTracking()
                 .Where( b => b.ForeignId != null )
                 .ToDictionary( t => (int)t.ForeignId, t => (int?)t.Id );

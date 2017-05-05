@@ -326,6 +326,7 @@ namespace Excavator.F1
                     var familyRoleId = FamilyRole.Adult;
                     int? individualId = row["Individual_ID"] as int?;
                     int? householdId = row["Household_ID"] as int?;
+
                     var personKeys = GetPersonKeys( individualId, householdId );
                     if ( personKeys == null )
                     {
@@ -495,6 +496,8 @@ namespace Excavator.F1
                                     break;
 
                             }
+                            // Let's make this whether they're TCE or not
+//                            AddPersonAttribute( HouseholdIdAttribute, person, householdId.ToString() );
                             AddCampus( familyGroup, !string.IsNullOrEmpty(subMemberStatus) && subMemberStatus.Equals("TCE") );
                         }
                         
@@ -518,6 +521,8 @@ namespace Excavator.F1
 
                         // HouseholdId already defined in scope
                         AddPersonAttribute( HouseholdIdAttribute, person, householdId.ToString() );
+
+                        AddPersonAttribute( HouseholdPositionAttribute, person, row["Household_Position"].ToString() );
 
                         string previousChurch = row["Former_Church"] as string;
                         if ( previousChurch != null )
@@ -1069,6 +1074,19 @@ namespace Excavator.F1
             {
                 person.Attributes.Add( attribute.Key, attribute );
                 person.AttributeValues.Add( attribute.Key, new AttributeValueCache()
+                {
+                    AttributeId = attribute.Id,
+                    Value = value
+                } );
+            }
+        }
+
+        protected static void AddGroupAttribute( AttributeCache attribute, Group group, string value )
+        {
+            if ( attribute != null && !string.IsNullOrWhiteSpace( value ) )
+            {
+                group.Attributes.Add( attribute.Key, attribute );
+                group.AttributeValues.Add( attribute.Key, new AttributeValueCache()
                 {
                     AttributeId = attribute.Id,
                     Value = value

@@ -384,6 +384,8 @@ namespace Excavator.Utility
         /// Stores how the person is connected to the family
         /// </summary>
         public FamilyRole FamilyRoleId;
+
+        public string HouseholdPosition;
     }
 
     /// <summary>
