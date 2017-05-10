@@ -470,11 +470,10 @@ namespace Excavator.F1
             // Else handle a household id being provided
             if ( householdId != null )
             {
-                return ImportedPeople.Where( p => p.HouseholdId == householdId && ( includeVisitors || p.FamilyRoleId != FamilyRole.Visitor ) )
-                                     .OrderBy( p => (int)p.FamilyRoleId )
-                                     .ThenBy( p => p.HouseholdPosition == "Head")
-                                     .ThenBy( p => p.HouseholdPosition == "Spouse")
-                                     .FirstOrDefault();
+                var orderedFamily = ImportedPeople.Where( p => p.HouseholdId == householdId && ( includeVisitors || p.FamilyRoleId != FamilyRole.Visitor ) )
+                                     .OrderByDescending( p => p.HouseholdPosition.ToLower() == "head")
+                                     .ThenByDescending( p => p.HouseholdPosition.ToLower() == "spouse");
+                return orderedFamily.FirstOrDefault();
             }
             return null;
         }

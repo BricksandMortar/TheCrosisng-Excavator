@@ -311,13 +311,7 @@ namespace Excavator.F1
             int percentage = ( totalRows - 1 ) / 100 + 1;
             ReportProgress( 0, string.Format( "Verifying person import ({0:N0} found, {1:N0} already exist).", totalRows, ImportedPeople.Count ) );
 
-            foreach (
-                var groupedRows in
-                tableData.GroupBy<Row, int?>(r => r["Household_ID"] as int?)
-                         .Select(
-                             g =>
-                                 g.OrderBy(r => (string) r["Household_Position"] == "Head")
-                                     .ThenBy(r => (string) r["Household_Position"] == "Spouse")))
+            foreach ( var groupedRows in tableData.GroupBy( r => r["Household_ID"] as int? ) )
             {
                 var familyGroup = new Group();
 
@@ -522,7 +516,10 @@ namespace Excavator.F1
                         // HouseholdId already defined in scope
                         AddPersonAttribute( HouseholdIdAttribute, person, householdId.ToString() );
 
-                        AddPersonAttribute( HouseholdPositionAttribute, person, row["Household_Position"].ToString() );
+                        if (familyRole != null)
+                        {
+                            AddPersonAttribute( HouseholdPositionAttribute, person, familyRole );
+                        }
 
                         string previousChurch = row["Former_Church"] as string;
                         if ( previousChurch != null )
@@ -544,7 +541,7 @@ namespace Excavator.F1
 
                         string school = row["School_Name"] as string;
                         if ( school != null )
-                        {
+                        { 
                             UpsertSchoolDefinedValue(schoolDefinedType, lookupContext, school, person, schoolAttribute, newSchools);
                         }
 
@@ -872,7 +869,8 @@ namespace Excavator.F1
                         PersonId = m.Person.Id,
                         IndividualId = m.Person.ForeignId,
                         HouseholdId = m.Group.ForeignId,
-                        FamilyRoleId = m.Person.ReviewReasonNote.ConvertToEnum<FamilyRole>()
+                        FamilyRoleId = m.Person.ReviewReasonNote.ConvertToEnum<FamilyRole>(),
+                        HouseholdPosition = m.Person.AttributeValues["HouseHoldPosition"].Value
                     } ).ToList()
                     );
                 }
@@ -886,7 +884,8 @@ namespace Excavator.F1
                         PersonId = m.Person.Id,
                         IndividualId = m.Person.ForeignId,
                         HouseholdId = m.Group.ForeignId,
-                        FamilyRoleId = m.Person.ReviewReasonNote.ConvertToEnum<FamilyRole>()
+                        FamilyRoleId = m.Person.ReviewReasonNote.ConvertToEnum<FamilyRole>(),
+                        HouseholdPosition = m.Person.AttributeValues["HouseHoldPosition"].Value
                     } ).ToList()
                     );
                 }
