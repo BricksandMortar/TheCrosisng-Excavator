@@ -471,8 +471,8 @@ namespace Excavator.F1
             if ( householdId != null )
             {
                 var orderedFamily = ImportedPeople.Where( p => p.HouseholdId == householdId && ( includeVisitors || p.FamilyRoleId != FamilyRole.Visitor ) )
-                                     .OrderByDescending( p => p.HouseholdPosition.ToLower() == "head")
-                                     .ThenByDescending( p => p.HouseholdPosition.ToLower() == "spouse");
+                                     .OrderByDescending( p => p.HouseholdPosition != null && p.HouseholdPosition.ToLower() == "head")
+                                     .ThenByDescending( p => p.HouseholdPosition != null && p.HouseholdPosition.ToLower() == "spouse");
                 return orderedFamily.FirstOrDefault();
             }
             return null;
