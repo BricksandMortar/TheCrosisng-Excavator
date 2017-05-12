@@ -79,13 +79,13 @@ namespace Excavator.F1
             int percentage = ( totalRows - 1 ) / 100 + 1;
             ReportProgress( 0, string.Format( "Verifying communication import ({0:N0} found, {1:N0} already exist).", totalRows, existingNumbers.Count ) );
 
-            foreach ( var groupedRows in tableData.OrderByDescending( r => r["LastUpdatedDate"] ).GroupBy<Row, int?>( r => r["Household_ID"] as int? ) )
+            foreach ( var groupedRows in tableData.OrderByDescending( r => r["LastUpdateDate"] ).GroupBy<Row, int?>( r => r["household_id"] as int? ) )
             {
                 foreach ( var row in groupedRows.Where( r => r != null ) )
                 {
-                    string value = row["Communication_Value"] as string;
-                    int? individualId = row["Individual_ID"] as int?;
-                    int? householdId = row["Household_ID"] as int?;
+                    string value = row["communication_value"] as string;
+                    int? individualId = row["individual_id"] as int?;
+                    int? householdId = row["household_id"] as int?;
                     var peopleToUpdate = new List<PersonKeys>();
 
                     if ( individualId != null )
@@ -103,10 +103,10 @@ namespace Excavator.F1
 
                     if ( peopleToUpdate.Any() && !string.IsNullOrWhiteSpace( value ) )
                     {
-                        DateTime? lastUpdated = row["LastUpdatedDate"] as DateTime?;
-                        string communicationComment = row["Communication_Comment"] as string;
-                        string type = row["Communication_Type"] as string;
-                        bool isListed = (bool)row["Listed"];
+                        DateTime? lastUpdated = row["LastUpdateDate"] as DateTime?;
+                        string communicationComment = row["communication_comment"] as string;
+                        string type = row["communication_type"] as string;
+                        bool isListed = (bool)row["listed"];
                         value = value.RemoveWhitespace();
 
                         // Communication value is a number

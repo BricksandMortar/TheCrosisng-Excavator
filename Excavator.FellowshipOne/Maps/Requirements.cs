@@ -272,10 +272,10 @@ namespace Excavator.F1
 
     internal class RequirementColumnNames
     {
-        public const string IndividualId = "Individual_ID";
-        public const string RequuirementName = "Requirement_Name";
-        public const string RequirementDate = "Requirement_Date";
-        public const string RequirementStatusName = "Requirement_Status_Name";
+        public const string IndividualId = "individual_id";
+        public const string RequuirementName = "requirement_name";
+        public const string RequirementDate = "requirement_date";
+        public const string RequirementStatusName = "requirement_status_name";
     }
 
 }

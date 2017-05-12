@@ -50,13 +50,13 @@ namespace Excavator.F1
 
             foreach ( var row in tableData.Where( r => r != null ) )
             {
-                int? individualId = row["Individual_ID"] as int?;
-                int? householdId = row["Household_ID"] as int?;
+                int? individualId = row["individual_id"] as int?;
+                int? householdId = row["household_id"] as int?;
                 var personKeys = GetPersonKeys( individualId, householdId, false );
                 if ( personKeys != null && personKeys.PersonAliasId > 0 )
                 {
-                    int? routingNumber = row["Routing_Number"] as int?;
-                    string accountNumber = row["Account"] as string;
+                    int? routingNumber = row["routing_no"] as int?;
+                    string accountNumber = row["account"] as string;
                     if ( routingNumber != null && !string.IsNullOrWhiteSpace( accountNumber ) )
                     {
                         accountNumber = accountNumber.Replace( " ", string.Empty );
@@ -276,8 +276,8 @@ namespace Excavator.F1
             ReportProgress( 0, $"Verifying contribution import ({totalRows:N0} found, {importedContributions.Count:N0} already exist)." );
             foreach ( var row in tableData.Where( r => r != null ) )
             {
-                var individualId = row["Individual_ID"] as int?;
-                var householdId = row["Household_ID"] as int?;
+                var individualId = row["individual_id"] as int?;
+                var householdId = row["household_id"] as int?;
                 var contributionId = row["ContributionID"] as int?;
 
                 if ( contributionId == null || importedContributions.ContainsKey( contributionId.Value ) || newTransactions.Any( nt => nt.ForeignId == contributionId.Value ) )
@@ -304,7 +304,7 @@ namespace Excavator.F1
                     transaction.ProcessedByPersonAliasId = giverAliasId;
                 }
 
-                string summary = row["Memo"] as string;
+                string summary = row["memo"] as string;
                 if ( summary != null )
                 {
                     transaction.Summary = summary;
@@ -321,7 +321,7 @@ namespace Excavator.F1
                     transaction.BatchId = defaultBatchId;
                 }
 
-                var receivedDate = row["Received_Date"] as DateTime?;
+                var receivedDate = row["received_date"] as DateTime?;
                 if ( receivedDate != null )
                 {
                     transaction.TransactionDateTime = receivedDate;
@@ -331,7 +331,7 @@ namespace Excavator.F1
 
                 string cardType = row["Card_Type"] as string;
                 string cardLastFour = row["Last_Four"] as string;
-                string contributionType = row["Contribution_Type_Name"].ToStringSafe().ToLower();
+                string contributionType = row["contribution_type_name"].ToStringSafe().ToLower();
                 if ( contributionType != null )
                 {
                     // set default source to onsite, exceptions listed below
@@ -381,7 +381,7 @@ namespace Excavator.F1
                     transaction.FinancialPaymentDetail = paymentDetail;
                 }
 
-                string checkNumber = row["Check_Number"] as string;
+                string checkNumber = row["check_number"] as string;
                 // if the check number is valid, put it in the transaction code
                 if ( checkNumber.AsIntegerOrNull() != null )
                 {
@@ -393,15 +393,15 @@ namespace Excavator.F1
                     transaction.SourceTypeValueId = sourceTypeKiosk;
                 }
 
-                string fundName = row["Fund_Name"] as string;
-                string subFund = row["Sub_Fund_Name"] as string;
+                string fundName = row["fund_name"] as string;
+                string subFund = row["sub_fund_name"] as string;
                 string fundGlAccount = row["Fund_GL_Account"] as string;
                 // ReSharper disable once InconsistentNaming
                 string subFundGLAccount = row["Sub_Fund_GL_Account"] as string;
                 var isFundActive = row["Fund_Is_active"] as bool?;
                 var subFundIsActive = row["Sub_Fund_Is_active"] as bool?;
-                var statedValue = row["Stated_Value"] as decimal?;
-                var amount = row["Amount"] as decimal?;
+                var statedValue = row["stated_value"] as decimal?;
+                var amount = row["amount"] as decimal?;
                 string fundType = row["FundType"] as string;
 
                 // is active if subfund and fund are active or if fund is active and it's not a subfund
@@ -568,13 +568,13 @@ namespace Excavator.F1
 
             foreach ( var row in tableData.Where( r => r != null ) )
             {
-                decimal? amount = row["Total_Pledge"] as decimal?;
-                DateTime? startDate = row["Start_Date"] as DateTime?;
-                DateTime? endDate = row["End_Date"] as DateTime?;
+                decimal? amount = row["total_pledge"] as decimal?;
+                DateTime? startDate = row["start_date"] as DateTime?;
+                DateTime? endDate = row["end_date"] as DateTime?;
                 if ( amount != null && startDate != null && endDate != null )
                 {
-                    int? individualId = row["Individual_ID"] as int?;
-                    int? householdId = row["Household_ID"] as int?;
+                    int? individualId = row["individual_id"] as int?;
+                    int? householdId = row["household_id"] as int?;
 
                     var personKeys = GetPersonKeys( individualId, householdId, includeVisitors: false );
                     if ( personKeys != null && personKeys.PersonAliasId > 0 )
@@ -590,7 +590,7 @@ namespace Excavator.F1
                         pledge.ModifiedDateTime = ImportDateTime;
                         pledge.ModifiedByPersonAliasId = ImportPersonAliasId;
 
-                        string frequency = row["Pledge_Frequency_Name"].ToString().ToLower();
+                        string frequency = row["pledge_frequency_name"].ToString().ToLower();
                         if ( frequency != null )
                         {
                             frequency = frequency.ToLower();
@@ -606,8 +606,8 @@ namespace Excavator.F1
                             }
                         }
 
-                        string fundName = row["Fund_Name"] as string;
-                        string subFund = row["Sub_Fund_Name"] as string;
+                        string fundName = row["fund_name"] as string;
+                        string subFund = row["sub_fund_name"] as string;
                         var fundIsActive = row["Fund_Is_active"] as bool?;
                         string fundType = row["FundType"] as string;
 
