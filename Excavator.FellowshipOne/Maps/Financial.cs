@@ -398,14 +398,14 @@ namespace Excavator.F1
                 string fundGlAccount = row["Fund_GL_Account"] as string;
                 // ReSharper disable once InconsistentNaming
                 string subFundGLAccount = row["Sub_Fund_GL_Account"] as string;
-                var isFundActive = row["Fund_Is_active"] as bool?;
-                var subFundIsActive = row["Sub_Fund_Is_active"] as bool?;
+                bool isFundActive = row["Fund_Is_active"].ToString().AsBoolean();
+                bool subFundIsActive = row["Sub_Fund_Is_active"].ToString().AsBoolean();
                 var statedValue = row["Stated_Value"] as decimal?;
                 var amount = row["Amount"] as decimal?;
                 string fundType = row["FundType"] as string;
 
                 // is active if subfund and fund are active or if fund is active and it's not a subfund
-                bool isActive = isFundActive.Value && ( ( subFundIsActive.HasValue && subFundIsActive.Value ) || ( !subFundIsActive.HasValue && string.IsNullOrWhiteSpace( subFund ) ) );
+                bool isActive = isFundActive && subFundIsActive || ( !subFundIsActive && string.IsNullOrWhiteSpace( subFund ) );
 
                 if ( fundName != null & amount != null )
                 {
