@@ -56,7 +56,7 @@ namespace Excavator.F1
                             DateTime? startDate = row["Start_Date"] as DateTime?;
                             DateTime? endDate = row["End_Date"] as DateTime?;
                             string comment = row["Comment"] as string;
-                            int? staffIndividualId = row["Staff_Individual_Id"] as int?;
+                            int? staffIndividualId = row["Staff_Individual_ID"] as int?;
                             string attributeName = row["Attribute_Name"] as string;
                             
                             {

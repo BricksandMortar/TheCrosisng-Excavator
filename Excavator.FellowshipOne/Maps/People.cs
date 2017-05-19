@@ -94,18 +94,18 @@ namespace Excavator.F1
 
             foreach ( var row in tableData.Where( r => r != null ) )
             {
-                int? householdId = row["HOUSEHOLD_ID"] as int?;
+                int? householdId = row["Household_ID"] as int?;
                 if ( GetPersonKeys( null, householdId ) == null )
                 {
                     var businessGroup = new Group();
                     var businessPerson = new Person();
 
                     businessPerson.CreatedByPersonAliasId = ImportPersonAliasId;
-                    businessPerson.CreatedDateTime = row["CREATED_DATE"] as DateTime?;
+                    businessPerson.CreatedDateTime = row["Created_Date"] as DateTime?;
                     businessPerson.RecordTypeValueId = businessRecordTypeId;
                     businessPerson.RecordStatusValueId = statusActiveId;
 
-                    var businessName = row["HOUSEHOLD_NAME"] as string;
+                    var businessName = row["Household_Name"] as string;
                     if ( businessName != null )
                     {
                         businessName = businessName.Replace( "&#39;", "'" );
@@ -311,27 +311,27 @@ namespace Excavator.F1
             int percentage = ( totalRows - 1 ) / 100 + 1;
             ReportProgress( 0, string.Format( "Verifying person import ({0:N0} found, {1:N0} already exist).", totalRows, ImportedPeople.Count ) );
 
-            foreach ( var groupedRows in tableData.GroupBy( r => r["household_id"] as int? ) )
+            foreach ( var groupedRows in tableData.GroupBy( r => r["Household_ID"] as int? ) )
             {
                 var familyGroup = new Group();
 
                 foreach ( var row in groupedRows.Where( r => r != null ) )
                 {
                     var familyRoleId = FamilyRole.Adult;
-                    int? individualId = row["individual_id"] as int?;
-                    int? householdId = row["household_id"] as int?;
+                    int? individualId = row["Individual_ID"] as int?;
+                    int? householdId = row["Household_ID"] as int?;
 
                     var personKeys = GetPersonKeys( individualId, householdId );
                     if ( personKeys == null )
                     {
                         var person = new Person();
-                        person.FirstName = row["first_name"] as string;
-                        person.MiddleName = row["middle_name"] as string;
-                        person.NickName = row["goes_by"] as string ?? person.FirstName;
-                        person.LastName = row["last_name"] as string;
+                        person.FirstName = row["First_Name"] as string;
+                        person.MiddleName = row["Middle_Name"] as string;
+                        person.NickName = row["Goes_By"] as string ?? person.FirstName;
+                        person.LastName = row["Last_Name"] as string;
                         person.IsDeceased = false;
 
-                        var DOB = row["date_of_birth"] as DateTime?;
+                        var DOB = row["Date_Of_Birth"] as DateTime?;
                         if ( DOB != null )
                         {
                             var birthDate = (DateTime)DOB;
@@ -349,13 +349,13 @@ namespace Excavator.F1
                         person.Attributes = new Dictionary<string, AttributeCache>();
                         person.AttributeValues = new Dictionary<string, AttributeValueCache>();
 
-                        var gender = row["gender"] as string;
+                        var gender = row["Gender"] as string;
                         if ( gender != null )
                         {
                             person.Gender = (Gender)Enum.Parse( typeof( Gender ), gender );
                         }
 
-                        string prefix = row["prefix"] as string;
+                        string prefix = row["Prefix"] as string;
                         if ( prefix != null )
                         {
                             prefix = prefix.RemoveSpecialCharacters().Trim();
@@ -363,7 +363,7 @@ namespace Excavator.F1
                                 .Select( s => (int?)s.Id ).FirstOrDefault();
                         }
 
-                        string suffix = row["suffix"] as string;
+                        string suffix = row["Suffix"] as string;
                         if ( suffix != null )
                         {
                             suffix = suffix.RemoveSpecialCharacters().Trim();
@@ -371,7 +371,7 @@ namespace Excavator.F1
                                 .Select( s => (int?)s.Id ).FirstOrDefault();
                         }
 
-                        string maritalStatus = row["marital_status"] as string;
+                        string maritalStatus = row["Marital_Status"] as string;
                         if ( maritalStatus != null )
                         {
                             person.MaritalStatusValueId = maritalStatusTypes.Where( dv => dv.Value == maritalStatus )
@@ -383,7 +383,7 @@ namespace Excavator.F1
                                 .Select( dv => (int?)dv.Id ).FirstOrDefault();
                         }
 
-                        string familyRole = row["household_position"] as string;
+                        string familyRole = row["Household_Position"] as string;
                         if ( familyRole != null )
                         {
                             familyRole = familyRole.ToLower();
@@ -397,7 +397,7 @@ namespace Excavator.F1
                             }
                         }
 
-                        string memberStatus = row["status_name"] as string;
+                        string memberStatus = row["Status_Name"] as string;
                         string subMemberStatus = row["SubStatus_Name"] as string;
 
                         if ( memberStatus != null)
@@ -501,7 +501,7 @@ namespace Excavator.F1
                             person.SystemNote = statusComment;
                         }
 
-                        string previousName = row["former_name"] as string;
+                        string previousName = row["Former_Name"] as string;
                         if ( previousName != null )
                         {
                             previousNamesList.Add( person.Guid, previousName );
@@ -521,31 +521,31 @@ namespace Excavator.F1
                             AddPersonAttribute( HouseholdPositionAttribute, person, familyRole );
                         }
 
-                        string previousChurch = row["former_church"] as string;
+                        string previousChurch = row["Former_Church"] as string;
                         if ( previousChurch != null )
                         {
                             AddPersonAttribute( previousChurchAttribute, person, previousChurch );
                         }
 
-                        string employer = row["employer"] as string;
+                        string employer = row["Employer"] as string;
                         if ( employer != null )
                         {
                             AddPersonAttribute( employerAttribute, person, employer );
                         }
 
-                        string position = row["Occupation"] as string ?? row["occupation_description"] as string;
+                        string position = row["Occupation_Name"] as string ?? row["Occupation_Description"] as string;
                         if ( position != null )
                         {
                             AddPersonAttribute( positionAttribute, person, position );
                         }
 
-                        string school = row["school_name"] as string;
+                        string school = row["School_Name"] as string;
                         if ( school != null )
                         { 
                             UpsertSchoolDefinedValue(schoolDefinedType, lookupContext, school, person, schoolAttribute, newSchools);
                         }
 
-                        DateTime? firstVisit = row["first_record"] as DateTime?;
+                        DateTime? firstVisit = row["First_Record"] as DateTime?;
                         if ( firstVisit != null )
                         {
                             person.CreatedDateTime = firstVisit;
@@ -553,13 +553,13 @@ namespace Excavator.F1
                         }
 
                         // Only import membership date if they are a member
-                        DateTime? membershipDate = row["status_date"] as DateTime?;
+                        DateTime? membershipDate = row["Status_Date"] as DateTime?;
                         if ( membershipDate != null && memberStatus.Contains( "member" ) )
                         {
                             AddPersonAttribute( membershipDateAttribute, person, membershipDate.Value.ToString( "MM/dd/yyyy" ) );
                         }
 
-                        string checkinNote = row["default_tag_comment"] as string;
+                        string checkinNote = row["Default_tag_comment"] as string;
                         if ( checkinNote != null )
                         {
                             AddPersonAttribute( legalNoteAttribute, person, checkinNote );
@@ -860,69 +860,36 @@ namespace Excavator.F1
                 rockContext.SaveChanges( DisableAuditing );
 
                 // add the new people to our tracking list
-                
-            } );
-
-            rockContext = new RockContext();
-            rockContext.WrapTransaction(() =>
-            {
                 if ( familyList.Any() )
                 {
                     var familyMembers = familyList.SelectMany( gm => gm.Members );
-                    foreach (var familyMember in familyMembers)
+                    ImportedPeople.AddRange( familyMembers.Select( m => new PersonKeys
                     {
-                        string houseHoldPosition = "";
-                        if (familyMember.Person.ContainsKey("HouseHoldPosition"))
-                        {
-                            houseHoldPosition = familyMember.Person.AttributeValues["HouseHoldPosition"].Value;
-                        }
-                        else
-                        {
-                            throw new Exception( familyMember.Person.ForeignId + " has no HouseHoldPosition (familyMember)" );
-                        }
-                        ImportedPeople.Add( new PersonKeys
-                        {
-                            PersonAliasId = ( int ) familyMember.Person.PrimaryAliasId,
-                            PersonId = familyMember.Person.Id,
-                            IndividualId = familyMember.Person.ForeignId,
-                            HouseholdId = familyMember.Group.ForeignId,
-                            FamilyRoleId = familyMember.Person.ReviewReasonNote.ConvertToEnum<FamilyRole>(),
-                            HouseholdPosition = houseHoldPosition
-                        } );
-                    }
+                        PersonAliasId = (int)m.Person.PrimaryAliasId,
+                        PersonId = m.Person.Id,
+                        IndividualId = m.Person.ForeignId,
+                        HouseholdId = m.Group.ForeignId,
+                        FamilyRoleId = m.Person.ReviewReasonNote.ConvertToEnum<FamilyRole>(),
+                        HouseholdPosition = m.Person.AttributeValues["HouseHoldPosition"].Value
+                    } ).ToList()
+                    );
                 }
 
                 if ( visitorList.Any() )
                 {
                     var visitors = visitorList.SelectMany( gm => gm.Members );
-                    foreach ( var visitor in visitors )
+                    ImportedPeople.AddRange( visitors.Select( m => new PersonKeys
                     {
-                        string houseHoldPosition = "";
-                        if (visitor.Person.ContainsKey("HouseHoldPosition"))
-                        {
-                            houseHoldPosition = visitor.Person.AttributeValues["HouseHoldPosition"].Value;
-                        }
-                        else
-                        {
-                            throw new Exception( visitor.Person.ForeignId + " has no HouseHoldPosition (visitor)" );
-                        }
-                        ImportedPeople.Add( new PersonKeys
-                        {
-                            PersonAliasId = ( int ) visitor.Person.PrimaryAliasId,
-                            PersonId = visitor.Person.Id,
-                            IndividualId = visitor.Person.ForeignId,
-                            HouseholdId = visitor.Group.ForeignId,
-                            FamilyRoleId = visitor.Person.ReviewReasonNote.ConvertToEnum<FamilyRole>(),
-                            HouseholdPosition = houseHoldPosition
-                        } );
-                    }
+                        PersonAliasId = (int)m.Person.PrimaryAliasId,
+                        PersonId = m.Person.Id,
+                        IndividualId = m.Person.ForeignId,
+                        HouseholdId = m.Group.ForeignId,
+                        FamilyRoleId = m.Person.ReviewReasonNote.ConvertToEnum<FamilyRole>(),
+                        HouseholdPosition = m.Person.AttributeValues["HouseHoldPosition"].Value
+                    } ).ToList()
+                    );
                 }
-
-
-                rockContext.ChangeTracker.DetectChanges();
-                rockContext.SaveChanges( DisableAuditing );
             } );
-            
             // end wrap transaction
         }
 
