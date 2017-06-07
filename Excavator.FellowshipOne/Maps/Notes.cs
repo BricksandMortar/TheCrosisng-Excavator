@@ -81,6 +81,11 @@ namespace Excavator.F1
                     DateTime? dateCreated = row["NoteCreated"] as DateTime?;
                     string noteType = row["Note_Type_Name"] as string;
 
+                    if (noteType == "Prayer Request")
+                    {
+                        continue;
+                    }
+
                     var note = new Note();
                     note.CreatedDateTime = dateCreated;
                     note.EntityId = personKeys.PersonId;
