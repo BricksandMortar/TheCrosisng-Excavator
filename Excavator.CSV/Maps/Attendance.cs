@@ -73,24 +73,16 @@ namespace Excavator.CSV
                     continue;
                 }
 
+
                 var groupLocation = group.GroupLocations.FirstOrDefault( gl => gl.Schedules.Count > 0 );
-                if ( groupLocation == null )
-                {
-                    continue;
-                }
-
-                var schedule = groupLocation.Schedules.FirstOrDefault( s => s.WasCheckInActive(startDateTime)) ?? groupLocation.Schedules.FirstOrDefault();
-
-                if (schedule == null)
-                {
-                    continue;
-                }
+                var schedule = groupLocation?.Schedules.FirstOrDefault( s => s.WasCheckInActive(startDateTime)) ?? groupLocation?.Schedules.FirstOrDefault();
+                
 
                 var attendance = new Attendance();
                 attendance.PersonAliasId = person.PrimaryAliasId;
                 attendance.GroupId = groupId;
-                attendance.LocationId = groupLocation.LocationId;
-                attendance.ScheduleId = schedule.Id;
+                attendance.LocationId = groupLocation?.LocationId;
+                attendance.ScheduleId = schedule?.Id;
                 attendance.DidAttend = true;
                 attendance.StartDateTime = startDateTime;
                 attendance.RSVP = RSVP.Yes;
@@ -134,11 +126,11 @@ namespace Excavator.CSV
 
         private static void SaveChanges( List<Attendance> attendances, RockContext rockContext )
         {
-            rockContext.WrapTransaction( () =>
+            rockContext.WrapTransaction(() =>
             {
-                rockContext.Attendances.AddRange( attendances );
-                rockContext.SaveChanges( DisableAuditing );
-            } );
+                rockContext.Attendances.AddRange(attendances);
+                rockContext.SaveChanges(DisableAuditing);
+            });
         }
         #endregion Main Methods
     }
