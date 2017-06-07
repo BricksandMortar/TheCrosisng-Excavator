@@ -98,7 +98,7 @@ namespace Excavator.BinaryFile
                     var attributeKey = attributeName.Value.RemoveWhitespace();
 
                     // change key to default key for Background Check Documents
-                    if ( attributeKey == "BackgroundCheck" )
+                    if ( attributeKey == "CIAClearance" )
                     {
                         attributeKey = "BackgroundCheckDocument";
                     }
