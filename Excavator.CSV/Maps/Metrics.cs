@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Entity;
+using System.Globalization;
 using System.Linq;
+using NodaTime.Text;
 using Rock;
 using Rock.Data;
 using Rock.Model;
@@ -14,6 +16,13 @@ namespace Excavator.CSV
     /// </summary>
     partial class CSVComponent
     {
+        private const int METRIC_ACTIVITY_COLUMN_NUMBER = 0;
+        private const int METRIC_ROSTER_FOLDER_COLUMN_NUMBER = 1;
+        private const int METRIC_ROSTER_COLUMN_NUMBER = 2;
+        private const int METRIC_DATE_COLUMN_NUMBER = 3;
+        private const int METRIC_TIME_COLUMN_NUMBER = 4;
+        private const int METRIC_COUNT_COLUMN_NUMBER = 5;
+
         /// <summary>
         /// Loads the family data.
         /// </summary>
@@ -21,19 +30,29 @@ namespace Excavator.CSV
         private int LoadMetrics( CSVInstance csvData )
         {
             // Required variables
+
+            var dateFormats = new[] { "yyyy-MM-dd", "MM/dd/yyyy", "MM/dd/yy", "M/dd/yyyy", "M/d/yyyy" };
             var lookupContext = new RockContext();
             var metricService = new MetricService( lookupContext );
             var categoryService = new CategoryService( lookupContext );
             var metricSourceTypes = DefinedTypeCache.Read( new Guid( Rock.SystemGuid.DefinedType.METRIC_SOURCE_TYPE ) ).DefinedValues;
             var metricManualSource = metricSourceTypes.FirstOrDefault( m => m.Guid == new Guid( Rock.SystemGuid.DefinedValue.METRIC_SOURCE_VALUE_TYPE_MANUAL ) );
 
-            var metricEntityTypeId = EntityTypeCache.Read<Rock.Model.MetricCategory>( false, lookupContext ).Id;
-            var campusEntityTypeId = EntityTypeCache.Read<Rock.Model.Campus>( false, lookupContext ).Id;
+            var metricEntityTypeId = EntityTypeCache.Read<MetricCategory>( false, lookupContext ).Id;
+            var scheduleEntityTypeId = EntityTypeCache.Read<Schedule>( false, lookupContext ).Id;
 
-            var campuses = CampusCache.All();
+            var schedules = new ScheduleService(lookupContext).Queryable().AsNoTracking().ToList();
             var allMetrics = metricService.Queryable().AsNoTracking().ToList();
             var metricCategories = categoryService.Queryable().AsNoTracking()
                 .Where( c => c.EntityType.Guid == new Guid( Rock.SystemGuid.EntityType.METRICCATEGORY ) ).ToList();
+            
+            var serviceTimeCategory = categoryService.Queryable()
+               .AsNoTracking().FirstOrDefault( c => c.EntityTypeId == scheduleEntityTypeId  && c.Name == "Service Times" );
+
+            if (serviceTimeCategory == null)
+            {
+                throw new Exception("Service Time Category is null");
+            }
 
             var defaultMetricCategory = metricCategories.FirstOrDefault( c => c.Name == "Metrics" );
 
@@ -63,47 +82,24 @@ namespace Excavator.CSV
             // Uses a look-ahead enumerator: this call will move to the next record immediately
             while ( (row = csvData.Database.FirstOrDefault()) != null )
             {
-                string metricCampus = row[MetricCampus];
-                string metricName = row[MetricName];
-                string metricCategory = row[MetricCategory];
-
+                string metricName = row[METRIC_ACTIVITY_COLUMN_NUMBER];
                 if ( !string.IsNullOrEmpty( metricName ) )
                 {
-                    decimal? value = row[MetricValue].AsDecimalOrNull();
-                    DateTime? valueDate = row[MetricService].AsDateTime();
+                    decimal? value = row[METRIC_COUNT_COLUMN_NUMBER].AsDecimalOrNull();
+
+                    
+                    string startDateUnparsed = row[METRIC_DATE_COLUMN_NUMBER];
+                    var startDate = DateTime.ParseExact( startDateUnparsed, dateFormats, new CultureInfo( "en-US" ), DateTimeStyles.None );
+                    string startTimeUnparsed = row[METRIC_TIME_COLUMN_NUMBER];
+                    var localTime = LocalTimePattern.CreateWithInvariantCulture( "h:mmtt" ).Parse( startTimeUnparsed );
+
+                    if ( localTime == null )
+                    {
+                        throw new Exception( "Time could not be parsed" );
+                    }
+
+                    var valueDateTime = startDate.AddHours( localTime.Value.Hour ).AddMinutes( localTime.Value.Minute );
                     var metricCategoryId = defaultMetricCategory.Id;
-
-                    // create the category if it doesn't exist
-                    Category newMetricCategory = null;
-                    if ( !string.IsNullOrEmpty( metricCategory ) )
-                    {
-                        newMetricCategory = metricCategories.FirstOrDefault( c => c.Name == metricCategory );
-                        if ( newMetricCategory == null )
-                        {
-                            newMetricCategory = new Category();
-                            newMetricCategory.Name = metricCategory;
-                            newMetricCategory.IsSystem = false;
-                            newMetricCategory.EntityTypeId = metricEntityTypeId;
-                            newMetricCategory.EntityTypeQualifierColumn = string.Empty;
-                            newMetricCategory.EntityTypeQualifierValue = string.Empty;
-
-                            lookupContext.Categories.Add( newMetricCategory );
-                            lookupContext.SaveChanges();
-
-                            metricCategories.Add( newMetricCategory );
-                        }
-
-                        metricCategoryId = newMetricCategory.Id;
-                    }
-
-                    if ( valueDate.HasValue )
-                    {
-                        var timeFrame = ( DateTime )valueDate;
-                        if ( timeFrame.TimeOfDay.TotalSeconds > 0 )
-                        {
-                            metricName = string.Format( "{0} {1}", timeFrame.ToString( "HH:mm" ), metricName );
-                        }
-                    }
 
                     // create metric if it doesn't exist
                     currentMetric = allMetrics.FirstOrDefault( m => m.Title == metricName && m.MetricCategories.Any( c => c.CategoryId == metricCategoryId ) );
@@ -117,7 +113,7 @@ namespace Excavator.CSV
                         currentMetric.Subtitle = string.Empty;
                         currentMetric.Description = string.Empty;
                         currentMetric.IconCssClass = string.Empty;
-                        currentMetric.EntityTypeId = campusEntityTypeId;
+                        currentMetric.EntityTypeId = scheduleEntityTypeId;
                         currentMetric.SourceValueTypeId = metricManualSource.Id;
                         currentMetric.CreatedByPersonAliasId = ImportPersonAliasId;
                         currentMetric.CreatedDateTime = ImportDateTime;
@@ -129,17 +125,17 @@ namespace Excavator.CSV
                         allMetrics.Add( currentMetric );
                     }
 
-                    var campusId = campuses.Where( c => c.Name == metricCampus || c.ShortCode == metricCampus )
-                        .Select( c => ( int? )c.Id ).FirstOrDefault();
+                    var scheduleId = schedules.Where( s => s.CategoryId == serviceTimeCategory.Id  && s.WasCheckInActive( valueDateTime ) )
+                        .Select( s => ( int? )s.Id ).FirstOrDefault();
 
                     // create values for this metric
                     var metricValue = new MetricValue();
                     metricValue.MetricValueType = MetricValueType.Measure;
                     metricValue.CreatedByPersonAliasId = ImportPersonAliasId;
                     metricValue.CreatedDateTime = ImportDateTime;
-                    metricValue.MetricValueDateTime = valueDate;
+                    metricValue.MetricValueDateTime = valueDateTime;
                     metricValue.MetricId = currentMetric.Id;
-                    metricValue.EntityId = campusId;
+                    metricValue.EntityId = scheduleId;
                     metricValue.Note = string.Empty;
                     metricValue.XValue = string.Empty;
                     metricValue.YValue = value;
