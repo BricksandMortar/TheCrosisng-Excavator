@@ -69,6 +69,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Maps\ContactNotes.cs" />
     <Compile Include="Maps\Requirements.cs" />
     <Compile Include="Maps\Attribute.cs" />
     <Compile Include="F1Component.cs" />

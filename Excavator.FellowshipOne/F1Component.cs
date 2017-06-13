@@ -74,6 +74,7 @@ namespace Excavator.F1
         public const string PLEDGE_TABLE_NAME = "Pledge";
         public const string ATTRIBUTE_TABLE_NAME = "Attribute";
         public const string REQUIREMENTS_TABLE_NAME = "Requirement";
+        public const string CONTACT_FORM_DATA_TABLE_NAME = "ContactFormData";
 
         /// <summary>
         /// The local database
@@ -252,6 +253,9 @@ namespace Excavator.F1
 
                         case REQUIREMENTS_TABLE_NAME:
                             MapRequirements( scanner.ScanTable( table.Name ).AsQueryable() );
+                            break;
+                        case CONTACT_FORM_DATA_TABLE_NAME:
+                            MapContactFormData(scanner.ScanTable(table.Name).AsQueryable());
                             break;
                     }
                 }
