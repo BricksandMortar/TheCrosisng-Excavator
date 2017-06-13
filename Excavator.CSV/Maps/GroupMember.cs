@@ -27,6 +27,9 @@ using Rock.Model;
 using Rock.Web.Cache;
 using Attribute = Rock.Model.Attribute;
 
+using com.bricksandmortarstudio.TheCrossing.Model;
+using com.bricksandmortarstudio.TheCrossing.Data;
+
 namespace Excavator.CSV
 {
     /// <summary>
@@ -41,6 +44,7 @@ namespace Excavator.CSV
         private const int GROUP_MEMBER_GROUP_ID_COLUMN_NUMBER = 16;
         private const int GROUP_MEMBER_GROUP_TYPE_ID_COLUMN_NUMBER = 15;
         private const int GROUP_MEMBER_JOIN_DATE_COLUMN_NUMBER = 22;
+        private const int GROUP_MEMBER_INACTIVATED_DATE_COLUMN_NUMBER = 23;
         private const int GROUP_MEMBER_JOB_COLUMN_NUMBER = 24;
         private const int GROUP_MEMBER_MINISTRY_COLUMN_NUMBER = 7;
         private const int GROUP_MEMBER_ACTIVITY_COLUMN_NUMBER = 8;
@@ -56,6 +60,7 @@ namespace Excavator.CSV
         private int LoadGroupMapping( CSVInstance csvData )
         {
             var rockContext = new RockContext();
+            var volunteerContext = new VolunteerTrackingContext();
 
             // Set the supported date formats
             var dateFormats = new[] { "yyyy-MM-dd", "M/dd/yyyy", "M/d/yyyy", "M/d/yy", "M/dd/yy" };
@@ -68,13 +73,14 @@ namespace Excavator.CSV
             var groupTypeRoleService = new GroupTypeRoleService( rockContext );
             var attributeService = new AttributeService( rockContext );
             var groupMemberService = new GroupMemberService( rockContext );
-
+            var volunteerMembershipService = new VolunteerMembershipService( volunteerContext );
 
             var newHistory = new List<History>();
             var newGroupMembers = new List<GroupMember>();
-            int personEntityTypeId = EntityTypeCache.Read( typeof( Rock.Model.Person ) ).Id;
-            int groupMemberEntityTypeId = EntityTypeCache.Read( typeof( Rock.Model.GroupMember ) ).Id;
-            int groupEntityTypeId = EntityTypeCache.Read( typeof( Rock.Model.Group ) ).Id;
+            var memberships = new List<VolunteerMembership>();
+            int personEntityTypeId = EntityTypeCache.Read( typeof( Person ) ).Id;
+            int groupMemberEntityTypeId = EntityTypeCache.Read( typeof( GroupMember ) ).Id;
+            int groupEntityTypeId = EntityTypeCache.Read( typeof( Group ) ).Id;
             int addToGroupCategoryId = new CategoryService( rockContext ).Queryable().FirstOrDefault( c => c.Name == "Group Membership" ).Id;
 
             string[] row;
@@ -106,6 +112,18 @@ namespace Excavator.CSV
                     throw new Exception( "Failed to parse created date time for person with individua id " + individualId + exception.Message );
                 }
 
+                string grouproleName = row[GROUP_MEMBER_ROLE_COLUMN_NUMBER];
+
+                var groupTypeId = row[GROUP_MEMBER_GROUP_TYPE_ID_COLUMN_NUMBER].AsIntegerOrNull();
+
+                if ( !groupTypeId.HasValue || string.IsNullOrWhiteSpace( grouproleName ) )
+                {
+                    continue;
+                }
+
+                var groupRole = groupTypeRoleService.GetByGroupTypeId( groupTypeId.Value )
+                                                   .FirstOrDefault( r => r.Name == grouproleName ) ?? group.GroupType.DefaultGroupRole;
+
                 if ( memberStatus == "Inactive" )
                 {
                     var addedHistory = new History
@@ -121,6 +139,17 @@ namespace Excavator.CSV
                         Caption = groupService.Get( groupId.Value ).Name
                     };
 
+                    DateTime inactivatedDateTime;
+                    try
+                    {
+                        inactivatedDateTime = DateTime.ParseExact( row[GROUP_MEMBER_INACTIVATED_DATE_COLUMN_NUMBER], dateFormats,
+                            new CultureInfo( "en-US" ), DateTimeStyles.None );
+                    }
+                    catch (Exception)
+                    {
+                        continue;
+                    }
+
                     var removedHistory = new History
                     {
                         EntityTypeId = personEntityTypeId,
@@ -128,7 +157,7 @@ namespace Excavator.CSV
                         RelatedEntityTypeId = groupEntityTypeId,
                         RelatedEntityId = groupId,
                         CategoryId = addToGroupCategoryId,
-                        CreatedDateTime = createdDateTime,
+                        CreatedDateTime = inactivatedDateTime,
                         Summary = string.Format( "Removed from group (team: {0}, service: {1}, role: {2}, job: {3})", row[GROUP_MEMBER_TEAM_COLUMN_NUMBER],
                                     row[GROUP_MEMBER_SERVICE_COLUMN_NUMBER], row[GROUP_MEMBER_ROLE_COLUMN_NUMBER], row[GROUP_MEMBER_JOB_COLUMN_NUMBER] ),
                         Caption = groupService.Get( groupId.Value ).Name
@@ -136,16 +165,20 @@ namespace Excavator.CSV
 
                     newHistory.Add( addedHistory );
                     newHistory.Add( removedHistory );
+
+                    var membership = new VolunteerMembership
+                    {
+                        GroupId = group.Id,
+                        PersonId = person.Id,
+                        GroupRoleId = groupRole.Id,
+                        JoinedGroupDateTime = createdDateTime,
+                        LeftGroupDateTime = inactivatedDateTime
+                    };
+                    memberships.Add(membership);
                 }
                 else
                 {
-                    var groupTypeId = row[GROUP_MEMBER_GROUP_TYPE_ID_COLUMN_NUMBER].AsIntegerOrNull();
-                    string grouproleName = row[GROUP_MEMBER_ROLE_COLUMN_NUMBER];
-
-                    if ( !groupTypeId.HasValue || string.IsNullOrWhiteSpace( grouproleName ) )
-                    {
-                        continue;
-                    }
+                    
 
                     var attributes = attributeService.GetByEntityTypeId( groupMemberEntityTypeId ).Where( a => a.EntityTypeQualifierValue == groupTypeId.ToString() ).ToList();
 
@@ -156,8 +189,7 @@ namespace Excavator.CSV
                     var groupMemberAttributes = attributeService.Get( entityTypeId, qualifierColumn, qualifierValue );
                     attributes.AddRange(groupMemberAttributes);
 
-                    var groupRole = groupTypeRoleService.GetByGroupTypeId( groupTypeId.Value )
-                                                        .FirstOrDefault( r => r.Name == grouproleName ) ?? group.GroupType.DefaultGroupRole;
+                   
 
                     bool loadedFromMemory = true;
                     var groupMember = newGroupMembers.FirstOrDefault( gm => gm.PersonId == person.Id );
@@ -192,6 +224,16 @@ namespace Excavator.CSV
                         }
                         SetGroupMemberAttributeValues( row, groupMember, attributes );
                     }
+
+                    var membership = new VolunteerMembership
+                    {
+                        GroupId = group.Id,
+                        PersonId = person.Id,
+                        GroupRoleId = groupRole.Id,
+                        JoinedGroupDateTime = createdDateTime,
+                        LeftGroupDateTime = null
+                    };
+                    memberships.Add( membership );
                 }
 
                 completed++;
@@ -201,7 +243,7 @@ namespace Excavator.CSV
                 }
                 else if ( completed % ReportingNumber < 1 )
                 {
-                    SaveChanges( newHistory, newGroupMembers, rockContext );
+                    SaveChanges( newHistory, newGroupMembers, memberships, rockContext, volunteerContext );
 
                     ReportPartialProgress();
 
@@ -210,6 +252,8 @@ namespace Excavator.CSV
                     rockContext = new RockContext();
                     newHistory.Clear();
                     newGroupMembers.Clear();
+                    memberships.Clear();
+
 
                     groupMemberService = new GroupMemberService( rockContext );
                     personService = new PersonService( rockContext );
@@ -218,7 +262,7 @@ namespace Excavator.CSV
                 }
             }
 
-            SaveChanges( newHistory, newGroupMembers, rockContext );
+            SaveChanges( newHistory, newGroupMembers, memberships, rockContext, volunteerContext );
 
 
             ReportProgress( 0, string.Format( "Finished group member import: {0:N0} rows processed", completed ) );
@@ -247,9 +291,14 @@ namespace Excavator.CSV
         /// </summary>
         /// <param name="newFamilyList">The family list.</param>
         /// <param name="visitorList">The optional visitor list.</param>
-        private void SaveChanges( List<History> newHistory, List<GroupMember> newGroupMembers, RockContext rockContext )
+        private void SaveChanges( List<History> newHistory, List<GroupMember> newGroupMembers, List<VolunteerMembership> memberships, RockContext rockContext, VolunteerTrackingContext volunteerContext )
         {
-            //            var rockContext = new RockContext();
+            volunteerContext.WrapTransaction(() =>
+            {
+                volunteerContext.VolunteerMemberships.AddRange( memberships );
+            });
+            volunteerContext.SaveChanges(DisableAuditing);
+
             rockContext.WrapTransaction( () =>
             {
                 rockContext.Histories.AddRange( newHistory );

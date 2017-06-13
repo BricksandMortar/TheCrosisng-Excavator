@@ -39,6 +39,10 @@
       <HintPath>..\packages\Ical.Net.2.2.3\lib\net45\antlr.runtime.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="com.bricksandmortarstudio.TheCrossing, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Excavator\bin\com.bricksandmortarstudio.TheCrossing.dll</HintPath>
+    </Reference>
     <Reference Include="DDay.iCal">
       <HintPath>..\..\Rock\RockWeb\Bin\DDay.iCal.dll</HintPath>
     </Reference>
