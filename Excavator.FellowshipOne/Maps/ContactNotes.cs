@@ -48,10 +48,9 @@ namespace Excavator.F1
             {
                 foreach ( var row in groupedRows.Where( r => r != null ) )
                 {
-                    string contactFormName = row["ContactIndividualID"] as string;
                     var individualId = row["ContactIndividualID"] as int?;
                     var householdId = row["HouseholdID"] as int?;
-                    string type = row["ContactFormName"] as string;
+                    string contactFormName = row["ContactFormName"] as string;
                     var startDateTime = row["ContactDatetime"] as DateTime?;
                     var endDateTime = row["ContactItemLastUpdatedDate"] as DateTime?;
                     var instanceId = row["ContactInstanceID"] as int?;
@@ -59,7 +58,7 @@ namespace Excavator.F1
                     string disposition = row["ContactDispositionName"] as string;
 
                     // Ignore emails
-                    if ( contactFormName == "Email" || !instanceId.HasValue || seenContactFormDataIds.Contains(instanceId.Value))
+                    if ( contactFormName != null && contactFormName.Trim() == "Email" || !instanceId.HasValue || seenContactFormDataIds.Contains(instanceId.Value))
                     {
                         continue;
                     }
@@ -72,13 +71,16 @@ namespace Excavator.F1
 
                     seenContactFormDataIds.Add( instanceId.Value );
                     var sb = new StringBuilder();
-                    sb.AppendFormat("Contact Form (id: {3}) {0} submitted with original contents of {1} on {2}", type,
+                    sb.AppendFormat("Contact Form (id: {3}) {0} submitted with original contents of {1} on {2}", contactFormName,
                         originalContactNote, startDateTime, instanceId);
                     if (endDateTime != null)
                     {
                         sb.AppendFormat(" closed on {0}", endDateTime);
                     }
-                    sb.AppendFormat(" with disposition {0}", disposition);
+                    if (!string.IsNullOrWhiteSpace(disposition))
+                    {
+                        sb.AppendFormat( " with disposition {0}", disposition );
+                    }
 
                     string text = sb.ToString();
                     text = Regex.Replace( text, @"\t|\&nbsp;", " " );
