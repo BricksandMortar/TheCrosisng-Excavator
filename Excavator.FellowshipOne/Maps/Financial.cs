@@ -331,6 +331,8 @@ namespace Excavator.F1
 
                 string cardType = row["Card_Type"] as string;
                 string cardLastFour = row["Last_Four"] as string;
+
+                string checkNumber = row["Check_Number"] as string;
                 string contributionType = row["Contribution_Type_Name"].ToStringSafe().ToLower();
                 if ( contributionType != null )
                 {
@@ -349,7 +351,15 @@ namespace Excavator.F1
                             break;
                         case "ach":
                             paymentCurrencyTypeId = currencyTypeACH;
-                            transaction.SourceTypeValueId = sourceTypeWebsite;
+                            if (!string.IsNullOrEmpty(checkNumber))
+                            {
+
+                                transaction.SourceTypeValueId = sourceTypeWebsite;
+                            }
+                            else
+                            {
+                                transaction.SourceTypeValueId = sourceTypeOnsite;
+                            }
                             break;
                         case "credit card":
                             paymentCurrencyTypeId = currencyTypeCreditCard;
@@ -381,7 +391,6 @@ namespace Excavator.F1
                     transaction.FinancialPaymentDetail = paymentDetail;
                 }
 
-                string checkNumber = row["Check_Number"] as string;
                 // if the check number is valid, put it in the transaction code
                 if ( checkNumber.AsIntegerOrNull() != null )
                 {
