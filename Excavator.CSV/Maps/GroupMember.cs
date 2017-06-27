@@ -73,7 +73,6 @@ namespace Excavator.CSV
             var groupTypeRoleService = new GroupTypeRoleService( rockContext );
             var attributeService = new AttributeService( rockContext );
             var groupMemberService = new GroupMemberService( rockContext );
-            var volunteerMembershipService = new VolunteerMembershipService( volunteerContext );
 
             var newHistory = new List<History>();
             var newGroupMembers = new List<GroupMember>();
