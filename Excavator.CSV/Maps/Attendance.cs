@@ -74,13 +74,19 @@ namespace Excavator.CSV
                 }
 
 
+                var schedule = group.Schedule;
                 var groupLocation = group.GroupLocations.FirstOrDefault( gl => gl.Schedules.Count > 0 );
-                var schedule = groupLocation?.Schedules.FirstOrDefault( s => s.WasCheckInActive(startDateTime) && !s.Name.ToLower().Contains("test")) ?? groupLocation?.Schedules.FirstOrDefault();
 
                 if (schedule == null)
                 {
-                    ReportProgress(0, string.Format("{0} ({1}) attended Group {2} ({3}) on {4}", person.FullName, person.Id, group, group.Id, startDateTime));
+                     schedule = groupLocation?.Schedules.FirstOrDefault( s => s.WasCheckInActive( startDateTime ) && !s.Name.ToLower().Contains( "test" ) ) ?? groupLocation?.Schedules.FirstOrDefault();
                 }
+
+                if (schedule == null)
+                {
+                    ReportProgress( 0, string.Format( "{0} ({1}) attended Group {2} ({3}) on {4}", person.FullName, person.Id, group, group.Id, startDateTime ) );
+                }
+
 
                 var attendance = new Attendance();
                 attendance.PersonAliasId = person.PrimaryAliasId;
