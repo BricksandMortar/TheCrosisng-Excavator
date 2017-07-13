@@ -321,6 +321,13 @@ namespace Excavator.F1
                     int? individualId = row["Individual_ID"] as int?;
                     int? householdId = row["Household_ID"] as int?;
 
+                    string memberStatus = row["Status_Name"] as string;
+                    if (!string.IsNullOrEmpty(memberStatus) && memberStatus.ToLower().Contains("delete"))
+                    {
+                        continue;
+                    }
+
+
                     var personKeys = GetPersonKeys( individualId, householdId );
                     if ( personKeys == null )
                     {
@@ -396,8 +403,7 @@ namespace Excavator.F1
                                 familyRoleId = FamilyRole.Child;
                             }
                         }
-
-                        string memberStatus = row["Status_Name"] as string;
+                        
                         string subMemberStatus = row["SubStatus_Name"] as string;
 
                         if ( memberStatus != null)
